@@ -24,7 +24,7 @@ import { api } from "../api";
 import { getSubscriptionBaseUrl } from "../utils/subscriptionUrl";
 
 export function Settings() {
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
 
   const handleExportBackup = async () => {

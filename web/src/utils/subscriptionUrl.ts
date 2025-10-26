@@ -13,19 +13,8 @@ export async function initializeSubscriptionBaseUrl(): Promise<string> {
   setLoading(true);
 
   try {
-    // 优先使用环境变量
-    const envSubscriptionBaseUrl = (import.meta as any).env
-      ?.VITE_SUBSCRIPTION_BASE_URL;
-    if (envSubscriptionBaseUrl) {
-      setBaseUrl(envSubscriptionBaseUrl);
-      return envSubscriptionBaseUrl;
-    }
-
     // 生产环境：直接使用当前页面的 origin
-    if (
-      window.location.hostname !== "localhost" &&
-      window.location.hostname !== "127.0.0.1"
-    ) {
+    if (process.env.NODE_ENV !== "development") {
       const prodUrl = window.location.origin;
       setBaseUrl(prodUrl);
       return prodUrl;
@@ -66,9 +55,16 @@ export function clearSubscriptionUrlCache(): void {
 
 /**
  * 构建订阅 URL
+ * @param subId 订阅ID
+ * @param withTs 是否添加时间戳
+ * @param returnYaml 是否返回YAML
  */
-export function buildSubscriptionUrl(subId: string, withTs = true): string {
+export function buildSubscriptionUrl(
+  subId: string,
+  withTs = true,
+  returnYaml = false
+): string {
   const baseUrl = getSubscriptionBaseUrl();
   const url = `${baseUrl.replace(/\/$/, "")}/subscribe?id=${subId}`;
-  return withTs ? `${url}?t=${Date.now()}` : url;
+  return returnYaml ? `${url}&yaml=1` : withTs ? `${url}&t=${Date.now()}` : url;
 }

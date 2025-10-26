@@ -338,71 +338,71 @@ export function createRouter(db: {
         return;
       }
 
+      const isForeverValid = !sub.expireAt;
+      const isUnlimitTraffic = sub.totalTrafficBytes === null;
+
       // 检查是否过期
       const now = dayjs();
-      const startAt = dayjs(sub.startAt);
-      const expireAt = dayjs(sub.expireAt);
+      let remainingDays = "永久有效";
+      let expireTime = "永久有效";
+      let totalTraffic: number | string = `"${"无限制"}"`;
 
-      if (now.isBefore(startAt) || now.isAfter(expireAt)) {
-        ctx.status = 403;
-        ctx.body = createErrorResponse("订阅已过期");
-        return;
+      if (!isForeverValid) {
+        const startAt = dayjs(sub.startAt);
+        const expireAt = dayjs(sub.expireAt);
+        if (now.isBefore(startAt) || now.isAfter(expireAt)) {
+          ctx.status = 403;
+          ctx.body = createErrorResponse("订阅已过期");
+          return;
+        }
+        remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
+        expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
       }
 
-      // 更新 lastUpdatedAt 为请求时间
-      // sub.lastUpdatedAt = dayjs().toISOString();
-
-      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      // await db.write();
+      if (!isUnlimitTraffic) {
+        totalTraffic = sub.totalTrafficBytes || 0;
+      }
 
       const filename = sub.name;
-      const isForeverValid = sub.expireAt === null;
-      const isUnlimitTraffic = sub.totalTrafficBytes === null;
-      const remainingDays = isForeverValid
-        ? "Unlimited"
-        : Math.max(0, expireAt.diff(now, "day"));
+      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
+      const webPageUrl = "https://sub-proxy.bbchin.com:50000";
 
       const headerComment = [
         `# Subscription Info Header`,
         `info:`,
-        ` id: "${id}"`,
-        ` title: "${filename}"`,
-        ` website: "https://sub-proxy.bbchin.com:50000"`,
-        ` source: "http://localhost:3001/subscription/${id}"`,
-        ` description: "华炫之光自用代理，针对海外社媒做了单独定制。"`,
+        ` id: "${id}  # 订阅ID`,
+        ` title: "${filename}"  # 标题`,
+        ` website: "${webPageUrl}"  # 网站`,
+        ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"  # 来源`,
+        ` description: "华炫之光自用代理，针对海外社媒做了单独定制。"  # 描述`,
         ` upload: 0 # 已上传流量（字节）`,
         ` download: 0 # 已下载流量（字节）`,
-        ` total: ${isUnlimitTraffic ? "Unlimited" : sub.totalTrafficBytes} # 总流量（字节）`,
-        ` support: ["clash", "clash verge"]`,
-        ` remain_days: ${remainingDays}  # 剩余天数`,
-        ` expire_time: ${isForeverValid ? "Unlimited" : expireAt.format("YYYY-MM-DD HH:mm:ss")}  # 到期时间`,
-        ` last_update: ${updatedAt}  # 上次更新时间`,
+        ` total: ${totalTraffic} # 总流量（字节）`,
+        ` support: ["clash", "clash verge", "shadowrockets"]  # 支持软件`,
+        ` remain_days: "${remainingDays}"  # 剩余天数`,
+        ` expire_time: "${expireTime}"  # 到期时间`,
+        ` last_update: "${updatedAt}"  # 上次更新时间`,
         ``
       ].join("\n");
 
       const content = `${headerComment}\n\n${sub.yamlConfig}`;
 
-      // 设置响应头
-      // // 根据 User-Agent 调整响应（可选）
-      // const userAgent = ctx.get("User-Agent") || "";
+      // 设置响应头 - 根据环境变量设置不同的缓存策略
+      const isDev = process.env.NODE_ENV === "development";
+      if (isDev) {
+        // 开发环境：不使用任何缓存
+        ctx.set(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, proxy-revalidate"
+        );
+        ctx.set("Pragma", "no-cache");
+        ctx.set("Expires", "0");
+      } else {
+        // 生产环境：1分钟缓存
+        ctx.set("Cache-Control", "public, max-age=60");
+      }
 
-      // if (userAgent.includes("Clash")) {
-      //   // Clash 特定配置
-      //   filename = `clash-${subscriptionId}.yaml`;
-      // } else if (userAgent.includes("Shadowrocket")) {
-      //   // Shadowrocket 可能偏好不同的格式
-      //   filename = `shadowrocket-${subscriptionId}.conf`;
-      // } else {
-      //   filename = `proxy-${subscriptionId}.yaml`;
-      // }
-
-      ctx.set(
-        "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate"
-      );
-      // ctx.set("Cache-Control", "public, max-age=3600"); // TODO:缓存1小时，避免客户端频繁请求
-      ctx.set("Pragma", "no-cache");
-      ctx.set("Expires", "0");
+      // 设置响应头 - 根据yaml参数设置不同的响应头
       if (yaml === "1") {
         ctx.set("Content-Type", "text/yaml; charset=utf-8");
         ctx.set(
@@ -419,12 +419,17 @@ export function createRouter(db: {
 
       // 设置订阅头部信息，TODO: 流量统计功能待实现
       if (!isForeverValid || !isUnlimitTraffic) {
+        const expireAt = dayjs(sub.expireAt);
+        const expireUnix = !isForeverValid ? expireAt.unix() : 0;
+        const totalTraffic = !isUnlimitTraffic ? sub.totalTrafficBytes : 0;
+        const uploadBytes = 0;
+        const downloadBytes = 4815000000;
         ctx.set(
           "Subscription-Userinfo",
-          `upload=${0}; download=${4815000000}; total=${!isUnlimitTraffic ? sub.totalTrafficBytes : 0}; expire=${!isForeverValid ? expireAt.unix() : 0}`
+          `upload=${uploadBytes}; download=${downloadBytes}; total=${totalTraffic}; expire=${expireUnix}`
         );
       }
-      ctx.set("Profile-Web-Page-Url", "https://sub-proxy.bbchin.com:50000"); // 订阅页面
+      ctx.set("Profile-Web-Page-Url", webPageUrl); // 订阅页面
       ctx.set("Profile-Update-Interval", "24"); // 更新间隔（小时）
       ctx.set("Profile-Http-Request-Timeout", "24"); // 更新间隔（小时）
 
@@ -475,14 +480,14 @@ export function createRouter(db: {
     }
   });
 
-  // 获取设置（保留兼容性）
+  // 获取设置（暂时没用到，先保留）
   router.get("/api/settings", authMiddleware, async (ctx) => {
     try {
       let baseUrl: string;
 
       // 检查是否为开发环境（通过 host 判断）
       const host = ctx.request.host;
-      if (host.includes("localhost") || host.includes("127.0.0.1")) {
+      if (process.env.NODE_ENV === "development") {
         // 开发环境：使用本机局域网 IP + 3001
         const localIP = getLocalNetworkIP();
         baseUrl = `http://${localIP}:3001`;

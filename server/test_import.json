@@ -1,4 +1,0 @@
-{"subscriptions":[{"id":"test-123","name":"测试订阅","enabled":true,"totalTrafficBytes":null,"startAt":"","expireAt":"","yamlConfig":"# 测试配置
-proxies: []
-proxy-groups: []
-rules: []","createAt":"2025-10-25T19:00:00.000Z","lastUpdatedAt":"2025-10-25T19:00:00.000Z"}],"settings":{}}

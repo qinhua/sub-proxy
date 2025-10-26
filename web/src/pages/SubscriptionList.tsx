@@ -32,7 +32,8 @@ import {
   BarChartOutlined,
   ThunderboltOutlined,
   RocketOutlined,
-  StarOutlined
+  StarOutlined,
+  ReloadOutlined
 } from "@ant-design/icons";
 import { api } from "../api";
 import { buildSubscriptionUrl } from "../utils/subscriptionUrl";
@@ -495,6 +496,7 @@ export function SubscriptionList() {
                   操作
                 </Typography.Text>
                 <Button
+                  icon={<ReloadOutlined />}
                   onClick={() => {
                     setKeyword("");
                     setStatus("");
@@ -683,24 +685,9 @@ function RowActions({
               const success = copy(url);
               if (success) {
                 message.success("已复制订阅URL");
-              } else {
-                // 降级方案：显示URL让用户手动复制
-                Modal.info({
-                  title: "复制订阅URL",
-                  content: (
-                    <div>
-                      <p>请手动复制以下URL：</p>
-                      <Input.TextArea
-                        value={url}
-                        readOnly
-                        autoSize={{ minRows: 3, maxRows: 6 }}
-                        style={{ marginTop: 8 }}
-                      />
-                    </div>
-                  ),
-                  width: 500
-                });
+                return;
               }
+              message.error("复制失败");
             }}
           />
         </Tooltip>
@@ -711,6 +698,7 @@ function RowActions({
             icon={<QrcodeOutlined />}
             onClick={() => {
               const url = buildSubscriptionUrl(sub.id, true);
+              const yamlUrl = buildSubscriptionUrl(sub.id, true, true);
               Modal.info({
                 title: "二维码",
                 width: 400,
@@ -735,6 +723,9 @@ function RowActions({
                     >
                       {url}
                     </Typography.Text>
+                    <Typography.Link href={yamlUrl} target="_blank">
+                      下载订阅配置文件
+                    </Typography.Link>
                   </div>
                 )
               });
