@@ -48,6 +48,7 @@ docker run -d \
   -v /opt/sub-proxy/uploads:/app/upload \
   -v /opt/sub-proxy/logs:/app/logs \
   -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+  -e APP_NAME=sub-proxy \
   -e NODE_ENV=production \
   -e PORT=3001 \
   --health-interval=30s \
