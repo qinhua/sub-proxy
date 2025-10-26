@@ -463,7 +463,7 @@ export function createRouter(db: {
       // 检查是否为开发环境（通过 host 判断）
       const host = ctx.request.host;
       if (host.includes("localhost") || host.includes("127.0.0.1")) {
-        // 开发环境：使用本机局域网 IP + 3001
+        // 开发环境：使用本机局域网 IP + 端口
         const localIP = getLocalNetworkIP();
         subscriptionBaseUrl = `http://${localIP}:3001`;
       } else {
@@ -483,23 +483,7 @@ export function createRouter(db: {
   // 获取设置（暂时没用到，先保留）
   router.get("/api/settings", authMiddleware, async ctx => {
     try {
-      let baseUrl: string;
-
-      // 检查是否为开发环境（通过 host 判断）
-      const host = ctx.request.host;
-      if (process.env.NODE_ENV === "development") {
-        // 开发环境：使用本机局域网 IP + 3001
-        const localIP = getLocalNetworkIP();
-        baseUrl = `http://${localIP}:3001`;
-      } else {
-        // 生产环境：使用当前请求的 host
-        const protocol = ctx.request.protocol;
-        baseUrl = `${protocol}://${host}`;
-      }
-
-      const settings = {
-        baseUrl: baseUrl
-      };
+      const settings = {};
 
       ctx.body = createSuccessResponse(settings);
     } catch (error) {

@@ -27,7 +27,7 @@
     "docker:save": "docker save -o sub-proxy.tar sub-proxy:latest",
     "docker:load": "docker load -i sub-proxy.tar",
     "docker:tag": "docker tag sub-proxy:latest",
-    "docker:push": "docker push",
+    "docker:publish": "./push-to-dockerhub.sh marekqin",
     "format": "prettier -w \"**/*.{ts,tsx,js,json,md,yml,yaml}\""
   },
   "devDependencies": {

@@ -4,7 +4,7 @@
     "target": "ES2022",
     "module": "ES2022",
     "outDir": "dist",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
@@ -13,6 +13,7 @@
     "types": ["node"],
     "allowImportingTsExtensions": false,
     "noEmit": false,
+    "emitDeclarationOnly": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

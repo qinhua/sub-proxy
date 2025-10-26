@@ -85,7 +85,7 @@ const Login: React.FC = () => {
           onFinish={onFinish}
           autoComplete="off"
           size="large"
-          initialValues={{ username: "admin", password: "admin123456" }}
+          // initialValues={{ username: "admin", password: "admin123456" }}
         >
           <Form.Item
             name="username"

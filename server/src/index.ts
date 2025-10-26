@@ -85,7 +85,7 @@ async function main() {
     }
   });
 
-  const PORT = Number(process.env.PORT || 3001);
+  const PORT = 3001;
   app.listen(PORT, () => {
     console.log(`Server listening on http://0.0.0.0:${PORT}`);
   });

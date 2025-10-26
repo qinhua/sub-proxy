@@ -14,10 +14,6 @@ services:
       - sub-proxy-logs:/app/logs
     environment:
       - NODE_ENV=production
-      - PORT=3001
-      # 基础 URL 配置 - 请根据实际部署环境修改
-      # 示例: http://192.168.0.1:45719 或 https://your-domain.com
-      - BASE_URL=${BASE_URL:-http://localhost:3001}
     healthcheck:
       test:
         [
