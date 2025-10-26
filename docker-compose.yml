@@ -10,7 +10,7 @@ services:
       # 数据持久化 - 映射到外部文件夹
       # 只映射运行时数据，不映射默认数据文件
       - sub-proxy-data:/app/server/data
-      - sub-proxy-uploads:/app/upload
+      - sub-proxy-upload:/app/upload
       - sub-proxy-logs:/app/logs
     environment:
       - NODE_ENV=production
@@ -48,12 +48,12 @@ volumes:
       type: none
       o: bind
       device: ./data
-  sub-proxy-uploads:
+  sub-proxy-upload:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ./uploads
+      device: ./upload
   sub-proxy-logs:
     driver: local
     driver_opts:

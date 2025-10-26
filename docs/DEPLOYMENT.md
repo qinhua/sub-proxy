@@ -26,15 +26,15 @@
 docker load -i sub-proxy.tar
 
 # 2. 创建数据目录
-mkdir -p /opt/sub-proxy/{data,uploads,logs}
+mkdir -p /opt/sub-proxy/{data,upload,logs}
 
-# 3. 启动容器
+# 3. 启动容器（本地）
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
   -p 3001:3001 \
   -v /opt/sub-proxy/data:/app/server/data \
-  -v /opt/sub-proxy/uploads:/app/server/upload \
+  -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \
   sub-proxy:latest
 
@@ -48,22 +48,19 @@ curl http://localhost:3001/health
 
 ```bash
 # 创建数据目录
-mkdir -p /opt/sub-proxy/{data,uploads,logs}
+mkdir -p /opt/sub-proxy/{data,upload,logs}
 
 # 启动容器
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
   -p 3001:3001 \
+  -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   -v /opt/sub-proxy/data:/app/server/data \
-  -v /opt/sub-proxy/uploads:/app/server/upload \
+  -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \
-  --health-interval=30s \
-  --health-timeout=10s \
-  --health-retries=3 \
-  --memory=512m \
-  --memory-reservation=256m \
-  sub-proxy:latest
+  marekqin/sub-proxy:latest
+/bin/sh -c ./start.sh
 ```
 
 ### Docker Compose 部署
@@ -83,11 +80,11 @@ docker-compose logs -f
 
 ### 数据目录说明
 
-| 目录       | 用途       | 挂载路径             |
-| ---------- | ---------- | -------------------- |
-| `data/`    | 数据库文件 | `/app/server/data`   |
-| `uploads/` | 上传文件   | `/app/server/upload` |
-| `logs/`    | 日志文件   | `/app/logs`          |
+| 目录      | 用途       | 挂载路径             |
+| --------- | ---------- | -------------------- |
+| `data/`   | 数据库文件 | `/app/server/data`   |
+| `upload/` | 上传文件   | `/app/server/upload` |
+| `logs/`   | 日志文件   | `/app/logs`          |
 
 ### 数据备份
 
@@ -95,7 +92,7 @@ docker-compose logs -f
 # 备份数据
 tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz \
   /opt/sub-proxy/data \
-  /opt/sub-proxy/uploads \
+  /opt/sub-proxy/upload \
   /opt/sub-proxy/logs
 
 # 恢复数据

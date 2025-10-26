@@ -77,9 +77,9 @@ docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
   -p 3001:3001 \
-  -v $(pwd)/data:/app/server/data \
-  -v $(pwd)/uploads:/app/server/upload \
-  -v $(pwd)/logs:/app/logs \
+  -v /opt/sub-proxy/data:/app/server/data \
+  -v /opt/sub-proxy/upload:/app/server/upload \
+  -v /opt/sub-proxy/logs:/app/logs \
   sub-proxy:latest
 ```
 
@@ -121,7 +121,7 @@ sub-proxy/
 │   └── types/                 # 共享类型定义
 ├── docs/                      # 项目文档
 ├── data/                      # 运行时数据（Docker 映射）
-├── uploads/                   # 上传文件（Docker 映射）
+├── upload/                   # 上传文件（Docker 映射）
 ├── logs/                      # 日志文件（Docker 映射）
 ├── backups/                   # 数据备份
 ├── docker-compose.yml         # Docker Compose 配置
@@ -203,7 +203,7 @@ docker-compose logs -f
 
 ```bash
 # 手动备份数据
-tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz data/ uploads/ logs/
+tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz data/ upload/ logs/
 ```
 
 ### 恢复数据
@@ -229,7 +229,7 @@ docker-compose down
 cp -r data data.backup
 
 # 删除数据目录
-rm -rf data/* uploads/* logs/*
+rm -rf data/* upload/* logs/*
 
 # 重启服务（将自动加载默认数据）
 docker-compose up -d
@@ -239,12 +239,12 @@ docker-compose up -d
 
 ### 数据持久化
 
-| Docker 内部路径                    | 宿主机路径   | 说明         | 持久化 |
-| ---------------------------------- | ------------ | ------------ | ------ |
-| `/app/server/data/`                | `./data/`    | 运行时数据库 | ✅     |
-| `/app/upload/`                     | `./uploads/` | 用户上传文件 | ✅     |
-| `/app/logs/`                       | `./logs/`    | 日志文件     | ✅     |
-| `/app/server/data/db_default.json` | 不映射       | 默认数据模板 | ❌     |
+| Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
+| ---------------------------------- | ----------- | ------------ | ------ |
+| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅     |
+| `/app/upload/`                     | `./upload/` | 用户上传文件 | ✅     |
+| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
+| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
 
 ### 环境变量
 
@@ -267,7 +267,7 @@ PORT=3001
 ### 1. 备份数据
 
 ```bash
-tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz data/ uploads/ logs/
+tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz data/ upload/ logs/
 ```
 
 ### 2. 停止服务
@@ -295,7 +295,7 @@ docker-compose up -d
 docker-compose ps
 
 # 检查数据
-ls -la data/ uploads/ logs/
+ls -la data/ upload/ logs/
 ```
 
 ## 🛡️ 安全说明
@@ -333,7 +333,7 @@ docker exec <容器名称> sh -c "cp /app/server/data/db.json /app/server/data/d
    docker-compose logs
 
    # 检查数据目录权限
-   chmod -R 755 data uploads logs
+   chmod -R 755 data upload logs
 
    # 检查端口占用
    netstat -tlnp | grep 3001
@@ -347,7 +347,7 @@ docker exec <容器名称> sh -c "cp /app/server/data/db.json /app/server/data/d
 
    # 重置为默认数据
    docker-compose down
-   rm -rf data/* uploads/* logs/*
+   rm -rf data/* upload/* logs/*
    docker-compose up -d
    ```
 

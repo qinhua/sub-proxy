@@ -56,12 +56,12 @@ async function main() {
   app.use(router.routes()).use(router.allowedMethods());
 
   // Serve uploaded files (avatars)
-  const uploadsDir = path.resolve(__dirname, "../upload");
+  const uploadDir = path.resolve(__dirname, "../upload");
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith("/upload")) {
       const filePath = ctx.path.replace("/upload", "");
       ctx.path = filePath;
-      return serve(uploadsDir)(ctx, next);
+      return serve(uploadDir)(ctx, next);
     }
     return next();
   });
