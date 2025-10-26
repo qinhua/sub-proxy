@@ -1,192 +1,168 @@
-# 🚀 软路由/NAS 部署指南
+# 🚀 SubProxy 完整部署指南
 
-## 📦 准备工作
+## 📋 目录
 
-1. **导入镜像**
+- [快速开始](#快速开始)
+- [Docker 部署](#docker-部署)
+- [数据持久化](#数据持久化)
+- [密码重置](#密码重置)
+- [DockerHub 推送](#dockerhub-推送)
+- [故障排除](#故障排除)
 
-   ```bash
-   # 将 sub-proxy.tar 复制到软路由后，导入镜像
-   docker load -i sub-proxy.tar
-   ```
+## 🚀 快速开始
 
-2. **创建数据目录**
-   ```bash
-   mkdir -p ./server/data
-   mkdir -p ./logs
-   ```
+### 镜像信息
 
-## 🐳 Docker Run 命令
+- **镜像文件**: `sub-proxy.tar` (约 90MB)
+- **镜像标签**: `sub-proxy:latest`
+- **基础镜像**: `alpine:latest` (兼容 iStoreOS)
+- **默认端口**: `3001`
+- **默认账号**: `admin` / `admin123456`
 
-### 基础命令
-
-```bash
-docker run -d \
-  --name sub-proxy-app \
-  --restart unless-stopped \
-  -p 3001:3001 \
-  -v $(pwd)/server/data:/app/server/data \
-  -v $(pwd)/logs:/app/logs \
-  -e NODE_ENV=production \
-  -e PORT=3001 \
-  sub-proxy:latest
-```
-
-### 完整命令（推荐）
-
-```bash
-# 创建数据目录
-mkdir -p /opt/sub-proxy/data
-mkdir -p /opt/sub-proxy/uploads
-mkdir -p /opt/sub-proxy/logs
-
-# 启动容器（使用内部启动脚本）
-docker run -d \
-  --name sub-proxy-app \
-  --restart unless-stopped \
-  -p 3001:3001 \
-  -v /opt/sub-proxy/data:/app/server/data \
-  -v /opt/sub-proxy/uploads:/app/upload \
-  -v /opt/sub-proxy/logs:/app/logs \
-  -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-  -e APP_NAME=sub-proxy \
-  -e NODE_ENV=production \
-  -e PORT=3001 \
-  --health-interval=30s \
-  --health-timeout=10s \
-  --health-retries=3 \
-  --health-start-period=40s \
-  --log-driver=json-file \
-  --log-opt max-size=10m \
-  --log-opt max-file=3 \
-  --memory=512m \
-  --memory-reservation=256m \
-  --entrypoint="/app/start.sh" \
-  sub-proxy:latest
-```
-
-## ⚠️ 重要说明
-
-### 关于 `$(pwd)` 变量
-
-- `$(pwd)` 是 shell 变量，表示当前工作目录
-- 在软路由环境中可能不适用，建议使用绝对路径
-- 推荐使用 `/opt/sub-proxy/` 作为数据目录
-
-### 关于启动脚本
-
-- 容器内部包含 `start.sh` 启动脚本
-- 使用 `--entrypoint="/app/start.sh"` 可以确保正确启动
-- 启动脚本会处理 Node.js 路径和权限问题
-
-## 🔧 参数说明
-
-| 参数           | 说明         | 示例                                         |
-| -------------- | ------------ | -------------------------------------------- |
-| `--name`       | 容器名称     | `sub-proxy-app`                              |
-| `--restart`    | 重启策略     | `unless-stopped`                             |
-| `-p`           | 端口映射     | `3001:3001` 或 `8080:3001`                   |
-| `-v`           | 数据卷挂载   | 数据持久化                                   |
-| `-e BASE_URL`  | 外部访问地址 | `http://192.168.0.1:3001`                    |
-| `--entrypoint` | 启动脚本     | `/app/start.sh`                              |
-| `--health-cmd` | 健康检查     | `wget --spider http://localhost:3001/health` |
-
-## 📋 部署步骤
-
-### 1. 快速部署
-
-```bash
-# 使用数据持久化部署脚本（推荐）
-./deploy-with-persistence.sh "http://192.168.0.1:3001"
-```
-
-### 2. 手动部署
+### 一键部署
 
 ```bash
 # 1. 导入镜像
 docker load -i sub-proxy.tar
 
-# 2. 创建目录
-mkdir -p ./server/data ./logs
+# 2. 创建数据目录
+mkdir -p /opt/sub-proxy/{data,uploads,logs}
 
-# 3. 运行容器
+# 3. 启动容器
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
   -p 3001:3001 \
-  -v $(pwd)/server/data:/app/server/data \
-  -v $(pwd)/logs:/app/logs \
-  -e NODE_ENV=production \
-  -e PORT=3001 \
+  -v /opt/sub-proxy/data:/app/server/data \
+  -v /opt/sub-proxy/uploads:/app/server/upload \
+  -v /opt/sub-proxy/logs:/app/logs \
   sub-proxy:latest
 
-# 4. 检查状态
-docker ps
-curl http://192.168.0.1:3001/health
+# 4. 验证部署
+curl http://localhost:3001/health
 ```
 
-## 🧪 验证部署
+## 🐳 Docker 部署
 
-### 检查服务状态
+### 普通部署
 
 ```bash
-# 检查容器状态
-docker ps | grep sub-proxy
+# 创建数据目录
+mkdir -p /opt/sub-proxy/{data,uploads,logs}
 
-# 检查健康状态
-curl http://你的IP:3001/health
-
-# 检查配置
-curl http://你的IP:3001/api/settings
+# 启动容器
+docker run -d \
+  --name sub-proxy-app \
+  --restart unless-stopped \
+  -p 3001:3001 \
+  -v /opt/sub-proxy/data:/app/server/data \
+  -v /opt/sub-proxy/uploads:/app/server/upload \
+  -v /opt/sub-proxy/logs:/app/logs \
+  --health-interval=30s \
+  --health-timeout=10s \
+  --health-retries=3 \
+  --memory=512m \
+  --memory-reservation=256m \
+  sub-proxy:latest
 ```
 
-### 查看日志
+### Docker Compose 部署
 
 ```bash
-# 查看容器日志
-docker logs sub-proxy-app
+# 使用 docker-compose.yml
+docker-compose up -d
 
-# 实时查看日志
-docker logs -f sub-proxy-app
+# 查看状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
 ```
 
-## 🛠️ 管理命令
+## 💾 数据持久化
 
-### 停止服务
+### 数据目录说明
+
+| 目录       | 用途       | 挂载路径             |
+| ---------- | ---------- | -------------------- |
+| `data/`    | 数据库文件 | `/app/server/data`   |
+| `uploads/` | 上传文件   | `/app/server/upload` |
+| `logs/`    | 日志文件   | `/app/logs`          |
+
+### 数据备份
 
 ```bash
+# 备份数据
+tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz \
+  /opt/sub-proxy/data \
+  /opt/sub-proxy/uploads \
+  /opt/sub-proxy/logs
+
+# 恢复数据
+tar -xzf subproxy_backup_20241201_120000.tar.gz
+```
+
+### 数据重置
+
+```bash
+# 停止服务
 docker stop sub-proxy-app
+
+# 备份当前数据
+cp -r /opt/sub-proxy/data /opt/sub-proxy/data.backup
+
+# 删除数据目录
+rm -rf /opt/sub-proxy/data/*
+
+# 重启服务（将自动加载默认数据）
+docker start sub-proxy-app
 ```
 
-### 重启服务
+## 🔐 密码重置
+
+### 一键重置密码
 
 ```bash
-docker restart sub-proxy-app
+# 替换 <容器名称> 为你的实际容器名称
+docker exec <容器名称> sh -c "cp /app/server/data/db.json /app/server/data/db_backup_\$(date +%Y%m%d_%H%M%S).json && node -e \"const fs=require('fs'); const db=JSON.parse(fs.readFileSync('/app/server/data/db.json','utf8')); db.users=[{id:'admin-001',username:'admin',password:'\\\$2b\\\$10\\\$0jOBh3OCJN4BeVCBPM8hTO3cHzCvhFRcuJpDm30k5ht1uJ.mozthK',createdAt:'2025-10-24T16:35:18.920Z',lastLoginAt:null,avatar:'/upload/avatar/default_avatar.png',email:'',phone:'',lastUpdatedAt:new Date().toISOString()}]; fs.writeFileSync('/app/server/data/db.json',JSON.stringify(db,null,2));\" && echo '✅ 密码重置成功！默认用户名: admin, 密码: admin123456'"
 ```
 
-### 删除容器
+### 使用重置脚本
 
 ```bash
-docker stop sub-proxy-app
-docker rm sub-proxy-app
+# 使用项目提供的重置脚本
+./reset-password.sh <容器名称>
 ```
 
-### 更新服务
+## 🐳 DockerHub 推送
+
+### 推送步骤
 
 ```bash
-# 停止并删除旧容器
-docker stop sub-proxy-app
-docker rm sub-proxy-app
+# 1. 登录 DockerHub
+docker login
 
-# 重新导入新镜像
-docker load -i sub-proxy-new.tar
+# 2. 给镜像打标签
+docker tag sub-proxy:latest YOUR_USERNAME/sub-proxy:latest
+docker tag sub-proxy:latest YOUR_USERNAME/sub-proxy:1.0.0
 
-# 重新运行容器
-docker run -d [参数...] sub-proxy:latest
+# 3. 推送镜像
+docker push YOUR_USERNAME/sub-proxy:latest
+docker push YOUR_USERNAME/sub-proxy:1.0.0
+```
+
+### 使用推送脚本
+
+```bash
+# 使用项目提供的推送脚本
+./push-to-dockerhub.sh YOUR_USERNAME
 ```
 
 ## 🔍 故障排除
 
-### 1. 容器启动失败
+### 常见问题
+
+#### 1. 容器启动失败
 
 ```bash
 # 查看详细日志
@@ -196,7 +172,7 @@ docker logs sub-proxy-app
 netstat -tlnp | grep 3001
 ```
 
-### 2. 无法访问服务
+#### 2. 无法访问服务
 
 ```bash
 # 检查防火墙
@@ -206,33 +182,48 @@ iptables -L | grep 3001
 docker port sub-proxy-app
 ```
 
-### 3. 数据丢失
+#### 3. 数据丢失
 
 ```bash
 # 检查数据卷挂载
 docker inspect sub-proxy-app | grep Mounts
 
 # 恢复数据
-cp -r ./server/data.backup/* ./server/data/
+cp -r /opt/sub-proxy/data.backup/* /opt/sub-proxy/data/
+```
+
+### 管理命令
+
+```bash
+# 停止服务
+docker stop sub-proxy-app
+
+# 重启服务
+docker restart sub-proxy-app
+
+# 删除容器
+docker stop sub-proxy-app && docker rm sub-proxy-app
+
+# 更新服务
+docker stop sub-proxy-app
+docker rm sub-proxy-app
+docker load -i sub-proxy-new.tar
+docker run -d [参数...] sub-proxy:latest
 ```
 
 ## 📱 访问地址
 
-部署成功后，可以通过以下地址访问：
+部署成功后，可以通过以下地址访问，默认端口 3001：
 
-- **管理界面**: `http://你的软路由IP:3001`
-- **健康检查**: `http://你的软路由IP:3001/health`
-- **API 接口**: `http://你的软路由IP:3001/api/settings`
-- **订阅接口**: `http://你的软路由IP:3001/subscribe?id=订阅ID`
+- **管理界面**: `http://你的IP:3001`
+- **健康检查**: `http://你的IP:3001/health`
+- **API 接口**: `http://你的IP:3001/api/settings`
+- **订阅接口**: `http://你的IP:3001/subscribe?id=订阅ID`
 
 ## 🎯 最佳实践
 
 1. **使用固定端口**: 避免端口冲突
-2. **数据备份**: 定期备份 `./server/data` 目录
+2. **数据备份**: 定期备份数据目录
 3. **监控日志**: 定期检查容器日志
 4. **资源限制**: 设置内存限制防止资源耗尽
 5. **健康检查**: 启用健康检查确保服务稳定
-
----
-
-**SubProxy** - 让订阅管理更简单 🚀

@@ -69,11 +69,18 @@
 git clone <repository-url>
 cd sub-proxy
 
-# 一键部署
-./deploy-with-persistence.sh
+# 使用 Docker Compose 部署
+docker-compose up -d
 
-# 自定义 BASE_URL
-./deploy-with-persistence.sh "http://192.168.0.1:3001"
+# 或使用 Docker 命令部署
+docker run -d \
+  --name sub-proxy-app \
+  --restart unless-stopped \
+  -p 3001:3001 \
+  -v $(pwd)/data:/app/server/data \
+  -v $(pwd)/uploads:/app/server/upload \
+  -v $(pwd)/logs:/app/logs \
+  sub-proxy:latest
 ```
 
 ### 访问系统
@@ -119,9 +126,9 @@ sub-proxy/
 ├── backups/                   # 数据备份
 ├── docker-compose.yml         # Docker Compose 配置
 ├── Dockerfile                 # Docker 镜像构建
-├── deploy-with-persistence.sh # 部署脚本
-├── manage-data.sh             # 数据管理脚本
-└── reset-password.sh          # 密码重置脚本
+├── start.sh                   # Docker 启动脚本
+├── reset-password.sh          # 密码重置脚本
+└── push-to-dockerhub.sh       # DockerHub 推送脚本
 ```
 
 ## 🎯 功能演示
@@ -176,8 +183,8 @@ vim .env
 ### 1. Docker Compose 部署（推荐）
 
 ```bash
-# 使用数据持久化部署
-./deploy-with-persistence.sh
+# 启动服务
+docker-compose up -d
 
 # 查看服务状态
 docker-compose ps
@@ -195,29 +202,37 @@ docker-compose logs -f
 ### 备份数据
 
 ```bash
-# 备份所有数据
-./manage-data.sh backup
+# 手动备份数据
+tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz data/ uploads/ logs/
 ```
 
 ### 恢复数据
 
 ```bash
-# 恢复最新备份
-./manage-data.sh restore
+# 停止服务
+docker-compose down
+
+# 恢复数据
+tar -xzf subproxy_backup_20241201_120000.tar.gz
+
+# 重启服务
+docker-compose up -d
 ```
 
 ### 重置数据
 
 ```bash
-# 重置为默认数据
-./manage-data.sh reset
-```
+# 停止服务
+docker-compose down
 
-### 查看状态
+# 备份当前数据
+cp -r data data.backup
 
-```bash
-# 查看数据状态
-./manage-data.sh status
+# 删除数据目录
+rm -rf data/* uploads/* logs/*
+
+# 重启服务（将自动加载默认数据）
+docker-compose up -d
 ```
 
 ## 🔧 配置说明
@@ -244,16 +259,15 @@ PORT=3001
 
 ## 📚 文档
 
-- [软路由/NAS部署](docs/DEPLOYMENT.md) - 软路由和NAS环境部署指南
-- [数据持久化配置](docs/DATA_PERSISTENCE.md) - 数据持久化、备份恢复、升级流程
-- [密码重置指南](docs/DOCKER_PASSWORD_RESET.md) - 忘记密码后的恢复方法
+- [完整部署指南](docs/DEPLOYMENT.md) - 包含所有部署、数据管理、密码重置等完整指南
+- [DockerHub 推送](docs/DOCKERHUB_PUSH.md) - DockerHub 镜像推送指南
 
 ## 🔄 升级流程
 
 ### 1. 备份数据
 
 ```bash
-./manage-data.sh backup
+tar -czf subproxy_backup_$(date +%Y%m%d_%H%M%S).tar.gz data/ uploads/ logs/
 ```
 
 ### 2. 停止服务
@@ -271,13 +285,17 @@ git pull
 ### 4. 重新部署
 
 ```bash
-./deploy-with-persistence.sh
+docker-compose up -d
 ```
 
 ### 5. 验证数据
 
 ```bash
-./manage-data.sh status
+# 检查服务状态
+docker-compose ps
+
+# 检查数据
+ls -la data/ uploads/ logs/
 ```
 
 ## 🛡️ 安全说明
@@ -325,10 +343,12 @@ docker exec <容器名称> sh -c "cp /app/server/data/db.json /app/server/data/d
 
    ```bash
    # 从备份恢复
-   ./manage-data.sh restore
+   tar -xzf subproxy_backup_20241201_120000.tar.gz
 
    # 重置为默认数据
-   ./manage-data.sh reset
+   docker-compose down
+   rm -rf data/* uploads/* logs/*
+   docker-compose up -d
    ```
 
 3. **端口冲突**
