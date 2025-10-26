@@ -10,6 +10,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@monaco-editor/react": "^4.6.0",
+    "@sub-proxy/types": "workspace:*",
     "antd": "^5.21.2",
     "dayjs": "^1.11.13",
     "lodash-es": "^4.17.21",

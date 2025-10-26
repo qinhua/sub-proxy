@@ -18,10 +18,10 @@
       "enabled": true,
       "totalTrafficBytes": 80989890,
       "startAt": "2025-09-30T16:00:00.000Z",
-      "expireAt": "2025-10-30T16:00:00.000Z",
+      "expireAt": "2025-10-24T16:00:00.000Z",
       "yamlConfig": "# 在此粘贴Clash配置\nproxies: []\nproxy-groups: []\nrules: []",
       "createAt": "2025-10-25T18:48:30.345Z",
-      "lastUpdatedAt": "2025-10-26T06:31:47.223Z"
+      "lastUpdatedAt": "2025-10-26T07:46:44.424Z"
     },
     {
       "id": "1ab2b2d2-7fb2-4692-8644-25d6e37a0fda",
@@ -53,7 +53,7 @@
       "username": "admin",
       "password": "$2b$10$pbpgf6UmvwiyJe81ll2DO.GHKWHmMUNCWUbrR.wB5bNfHCzyPCmYK",
       "createdAt": "2025-10-24T16:35:18.920Z",
-      "lastLoginAt": "2025-10-26T05:04:24.658Z",
+      "lastLoginAt": "2025-10-26T07:45:51.785Z",
       "avatar": "/upload/avatar/866f40da409b.jpg",
       "email": "qinhua68@gmail.com",
       "phone": "13260610021",

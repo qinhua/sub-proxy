@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Form,
   Input,
@@ -11,9 +11,9 @@ import {
   Typography,
   Card,
   Row,
-  Col,
-  Divider
+  Col
 } from "antd";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import dayjs from "dayjs";
@@ -105,7 +105,22 @@ export function SubscriptionForm() {
 
   return (
     <div className="max-w px-6 py-4">
-      <Card title={isEdit ? "编辑订阅" : "创建订阅"} className="shadow-lg">
+      <Card
+        title={
+          <Space align="center" size={5}>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              type="text"
+              size="large"
+              onClick={() => navigate("/")}
+            />
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              {isEdit ? "编辑订阅" : "创建订阅"}
+            </Typography.Title>
+          </Space>
+        }
+        className="shadow-lg"
+      >
         <Form
           form={form}
           layout="vertical"

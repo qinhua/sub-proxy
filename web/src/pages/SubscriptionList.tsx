@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Table,
   Button,
@@ -46,7 +46,7 @@ import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
-} from "../enum";
+} from "@sub-proxy/types";
 
 dayjs.extend(relativeTime);
 
@@ -93,7 +93,7 @@ export function SubscriptionList() {
     }
   }
 
-  const searchSubs = debounce(async () => {
+  const searchSubs = useCallback(async () => {
     setLoading(true);
     try {
       const subsData = await api.searchSubs({
@@ -109,9 +109,8 @@ export function SubscriptionList() {
     } finally {
       setLoading(false);
     }
-  }, 300);
+  }, [keyword, status, traffic, validity]);
 
-  // 统计数据
   // 使用从后端获取的统计数据，如果没有则使用默认值
   const displayStats = useMemo(() => {
     if (stats) {
@@ -237,8 +236,12 @@ export function SubscriptionList() {
 
   // 当搜索条件改变时自动搜索
   useEffect(() => {
-    searchSubs();
-  }, [keyword, status, traffic, validity]);
+    const debouncedSearch = debounce(searchSubs, 500);
+    debouncedSearch();
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [searchSubs]);
 
   // 数据已经由后端过滤，直接使用
   const filtered = subs;
@@ -552,10 +555,9 @@ export function SubscriptionList() {
               width: 100,
               align: "center",
               render: (enabled: boolean) => (
-                <Badge
-                  status={enabled ? "success" : "default"}
-                  text={enabled ? "启用" : "禁用"}
-                />
+                <Tag color={enabled ? "green" : "red"}>
+                  {enabled ? "已启用" : "已禁用"}
+                </Tag>
               )
             },
             {

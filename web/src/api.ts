@@ -3,7 +3,7 @@ import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
-} from "./enum";
+} from "@sub-proxy/types";
 import { LogoutSystem } from "./utils";
 
 // 获取 API 基础 URL

@@ -17,7 +17,8 @@ import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
-} from "./enums";
+  // @ts-ignore
+} from "@sub-proxy/types";
 
 const subInputSchema = z.object({
   name: z.string().min(1),
