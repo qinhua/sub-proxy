@@ -1,6 +1,28 @@
-# SubProxy - 订阅代理管理系统
+<p align="center">
+   <a class="logo" href="https://github.com/qinhua/sub-proxy">
+     <img src="./docs/logo.jpg" style="width:120px;border-radius:50%" alt="SubProxy"/>
+</p>
+<h1 align="center">SubProxy</h1>
+<p align="center">一个基于 Koa + React 的现代订阅代理管理系统，支持 Docker 部署和数据持久化。</p>
+<p class="badge-row" align="center">
+  <a href="https://react.docschina.org" target="_blank">
+    <img src="https://img.shields.io/badge/react-18.3.1-cyan?logo=react" alt="React"/>
+  </a>
+  <a href="https://koajs.com/" target="_blank">
+    <img src="https://img.shields.io/badge/koajs-3.0.3-green" alt="KoaJS"/>
+  </a>
+  <a href="https://docker.com/" target="_blank">
+    <img src="https://img.shields.io/badge/docker-gray?style=flat&logo=docker" alt="Docker"/>
+  </a>
+  <a href="https://clashvergerev.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Shadowrockets-aa46aa?style=flat&label=Clash" alt="supports"/>
+  </a>
+  <a href="https://github.com/qinhua/sub-proxy/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/badge/License-MIT-orange" alt="License"/>
+  </a>
+</p>
 
-一个基于 Koa + React 的现代化订阅代理管理系统，支持 Docker 部署和数据持久化。
+---
 
 ## ✨ 功能特性
 
@@ -44,7 +66,7 @@ cd sub-proxy
 
 ### 访问系统
 
-- **管理界面**：http://localhost:3001
+- **管理界面**：http://localhost:5173
 - **默认账号**：admin
 - **默认密码**：admin123456
 
@@ -172,8 +194,9 @@ PORT=3001
 
 ## 📚 文档
 
+- [软路由/NAS部署](docs/DEPLOYMENT.md)
 - [数据持久化配置](docs/DATA_PERSISTENCE.md)
-- [软路由/NAS部署](DEPLOYMENT.md)
+- [密码重置指南](docs/DOCKER_PASSWORD_RESET.md)
 
 ## 🔄 升级流程
 
@@ -213,6 +236,23 @@ git pull
 - 建议首次登录后立即修改密码
 - 生产环境请使用强密码
 - 定期备份重要数据
+
+### 🔑 密码重置
+
+如果忘记密码，可以使用以下命令重置（**保留所有订阅和设置**）：
+
+```bash
+# 使用脚本重置（推荐）
+./reset-password.sh <容器名称>
+
+# 或使用Docker命令
+docker exec <容器名称> sh -c "cp /app/server/data/db.json /app/server/data/db_backup_$(date +%Y%m%d_%H%M%S).json && node -e \"const fs=require('fs'); const db=JSON.parse(fs.readFileSync('/app/server/data/db.json','utf8')); db.users=[{id:'admin-001',username:'admin',password:'\\\$2b\\\$10\\\$0jOBh3OCJN4BeVCBPM8hTO3cHzCvhFRcuJpDm30k5ht1uJ.mozthK',createdAt:'2025-10-24T16:35:18.920Z',lastLoginAt:null,avatar:'/upload/avatar/default_avatar.png',email:'',phone:'',lastUpdatedAt:new Date().toISOString()}]; fs.writeFileSync('/app/server/data/db.json',JSON.stringify(db,null,2));\" && echo '✅ 密码重置成功！保留所有订阅和设置。默认用户名: admin, 密码: admin123456'"
+```
+
+重置后默认登录信息：
+
+- **用户名**: `admin`
+- **密码**: `admin123456`
 
 ## 🐛 故障排除
 

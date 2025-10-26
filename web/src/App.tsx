@@ -146,7 +146,12 @@ function MainLayout() {
       >
         <div style={{ display: "flex", alignItems: "center" }}>
           <a href="/" style={{ display: "flex", alignItems: "center" }}>
-            <Avatar size={44} src={ImgLogo} style={{ marginRight: 8 }} />
+            <Avatar
+              className="animate-pulse"
+              size={44}
+              src={ImgLogo}
+              style={{ marginRight: 8 }}
+            />
             <Text style={{ color: "#fff", fontSize: 18, fontWeight: 600 }}>
               SubProxy
             </Text>
