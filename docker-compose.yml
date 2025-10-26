@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+  sub-proxy:
+    build: .
+    container_name: sub-proxy-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # 前端管理界面和订阅接口
+    volumes:
+      # 数据持久化 - 映射到外部文件夹
+      # 只映射运行时数据，不映射默认数据文件
+      - sub-proxy-data:/app/server/data
+      - sub-proxy-uploads:/app/upload
+      - sub-proxy-logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # 基础 URL 配置 - 请根据实际部署环境修改
+      # 示例: http://192.168.0.1:45719 或 https://your-domain.com
+      - BASE_URL=${BASE_URL:-http://localhost:3001}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+# 数据卷定义
+volumes:
+  sub-proxy-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  sub-proxy-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./uploads
+  sub-proxy-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
