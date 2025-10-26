@@ -7,6 +7,7 @@ import { generateAvatarUrl } from "./utils";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { fileURLToPath } from "url";
 import { Subscription, DbSchema } from "./types";
 import {
   authMiddleware,
@@ -19,6 +20,10 @@ import {
   SubscriptionValidity
   // @ts-ignore
 } from "@sub-proxy/types";
+
+// 在 ES 模块中获取 __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const subInputSchema = z.object({
   name: z.string().min(1),
@@ -38,7 +43,8 @@ export function createRouter(db: {
   // 配置 multer 用于文件上传
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), "upload", "avatar");
+      // 使用 __dirname 获取当前文件所在目录，然后构建相对路径
+      const uploadDir = path.join(__dirname, "..", "upload", "avatar");
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
@@ -634,6 +640,16 @@ export function createRouter(db: {
     try {
       const userId = ctx.state.user.id;
 
+      // 检查请求类型
+      const contentType = ctx.request.headers["content-type"];
+      if (!contentType || !contentType.includes("multipart/form-data")) {
+        ctx.status = 400;
+        ctx.body = createErrorResponse(
+          "请求类型错误，请使用multipart/form-data"
+        );
+        return;
+      }
+
       // 使用 multer 处理文件上传
       await new Promise<void>((resolve, reject) => {
         upload.single("avatar")(ctx.req as any, ctx.res as any, err => {
@@ -645,7 +661,7 @@ export function createRouter(db: {
         });
       });
 
-      // 检查是否有文件上传
+      // 获取上传的文件
       const file = (ctx.req as any).file;
       if (!file) {
         ctx.status = 400;
@@ -666,8 +682,7 @@ export function createRouter(db: {
           if (oldFilename && oldFilename !== "default_avatar.png") {
             const oldFilePath = path.join(
               process.cwd(),
-              "upload",
-              "avatar",
+              "upload/avatar",
               oldFilename
             );
             if (fs.existsSync(oldFilePath)) {
