@@ -3,6 +3,7 @@ import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
+  // @ts-ignore
 } from "@sub-proxy/types";
 import { LogoutSystem } from "./utils";
 

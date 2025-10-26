@@ -11,6 +11,7 @@ server/dist/
 web/dist/
 build/
 coverage/
+*.tar
 
 # Environment variables
 .env

@@ -28,7 +28,6 @@ docker run -d \
   -v $(pwd)/logs:/app/logs \
   -e NODE_ENV=production \
   -e PORT=3001 \
-  -e BASE_URL="http://你的软路由IP:3001" \
   sub-proxy:latest
 ```
 
@@ -48,10 +47,9 @@ docker run -d \
   -v /opt/sub-proxy/data:/app/server/data \
   -v /opt/sub-proxy/uploads:/app/upload \
   -v /opt/sub-proxy/logs:/app/logs \
+  -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
   -e NODE_ENV=production \
   -e PORT=3001 \
-  -e BASE_URL="http://你的软路由IP:3001" \
-  --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:3001/health" \
   --health-interval=30s \
   --health-timeout=10s \
   --health-retries=3 \
@@ -118,7 +116,6 @@ docker run -d \
   -v $(pwd)/logs:/app/logs \
   -e NODE_ENV=production \
   -e PORT=3001 \
-  -e BASE_URL="http://192.168.0.1:3001" \
   sub-proxy:latest
 
 # 4. 检查状态

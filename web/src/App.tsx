@@ -212,7 +212,7 @@ function MainLayout() {
           <Menu
             mode="inline"
             selectedKeys={getSelectedKey()}
-            items={menuItems.map((item) => ({
+            items={menuItems.map(item => ({
               ...item,
               style: { height: 66, paddingLeft: 14, paddingRight: 14 }
             }))}

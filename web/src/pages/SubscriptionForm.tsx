@@ -35,7 +35,7 @@ export function SubscriptionForm() {
 
   useEffect(() => {
     if (isEdit) {
-      api.listSubs().then((response) => {
+      api.listSubs().then(response => {
         const list = response.data || [];
         const target = list.find((x: any) => x.id === params.id);
         if (!target) {
@@ -271,7 +271,7 @@ export function SubscriptionForm() {
                   theme="vs-dark"
                   defaultLanguage="yaml"
                   value={yaml}
-                  onChange={(v) => setYaml(v || "")}
+                  onChange={v => setYaml(v || "")}
                   options={{
                     minimap: { enabled: false },
                     scrollBeyondLastLine: false,

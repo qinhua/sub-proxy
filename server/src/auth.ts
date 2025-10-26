@@ -105,7 +105,7 @@ export async function handleLogin(
   const { username, password } = loginData;
 
   // 查找用户
-  const user = users.find((u) => u.username === username);
+  const user = users.find(u => u.username === username);
   if (!user) {
     return createErrorResponse("用户名或密码错误", 401);
   }

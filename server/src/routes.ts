@@ -66,35 +66,34 @@ export function createRouter(db: {
   });
 
   // 健康检查
-  router.get("/health", async (ctx) => {
+  router.get("/health", async ctx => {
     ctx.body = { ok: true };
   });
 
   // 订阅统计
-  router.get("/api/subscriptions/stats", authMiddleware, async (ctx) => {
+  router.get("/api/subscriptions/stats", authMiddleware, async ctx => {
     try {
       const subscriptions = db.data.subscriptions;
 
       const stats = {
         total: subscriptions.length,
-        enabled: subscriptions.filter((s) => s.enabled).length,
-        disabled: subscriptions.filter((s) => !s.enabled).length,
+        enabled: subscriptions.filter(s => s.enabled).length,
+        disabled: subscriptions.filter(s => !s.enabled).length,
         unlimitedTraffic: subscriptions.filter(
-          (s) => s.totalTrafficBytes === null
+          s => s.totalTrafficBytes === null
         ).length,
-        limitedTraffic: subscriptions.filter(
-          (s) => s.totalTrafficBytes !== null
-        ).length,
-        permanent: subscriptions.filter((s) => {
+        limitedTraffic: subscriptions.filter(s => s.totalTrafficBytes !== null)
+          .length,
+        permanent: subscriptions.filter(s => {
           const expireTime = dayjs(s.expireAt);
           return expireTime.diff(dayjs(s.startAt), "year") > 50;
         }).length,
-        temporary: subscriptions.filter((s) => {
+        temporary: subscriptions.filter(s => {
           const expireTime = dayjs(s.expireAt);
           return expireTime.diff(dayjs(s.startAt), "year") <= 50;
         }).length,
         pinned: subscriptions.filter(
-          (s) => s.pinnedOrder !== undefined && s.pinnedOrder !== null
+          s => s.pinnedOrder !== undefined && s.pinnedOrder !== null
         ).length
       };
 
@@ -107,7 +106,7 @@ export function createRouter(db: {
   });
 
   // 订阅列表
-  router.get("/api/subscriptions", authMiddleware, async (ctx) => {
+  router.get("/api/subscriptions", authMiddleware, async ctx => {
     try {
       const { keyword, status, traffic, validity } = ctx.query;
 
@@ -116,7 +115,7 @@ export function createRouter(db: {
       // 关键词搜索
       if (keyword) {
         const keywordStr = String(keyword).toLowerCase();
-        filteredSubs = filteredSubs.filter((sub) =>
+        filteredSubs = filteredSubs.filter(sub =>
           sub.name.toLowerCase().includes(keywordStr)
         );
       }
@@ -124,13 +123,13 @@ export function createRouter(db: {
       // 状态筛选
       if (status) {
         const statusBool = status === SubscriptionStatus.Enabled;
-        filteredSubs = filteredSubs.filter((sub) => sub.enabled === statusBool);
+        filteredSubs = filteredSubs.filter(sub => sub.enabled === statusBool);
       }
 
       // 无限流量筛选
       if (traffic) {
         const trafficBool = traffic === SubscriptionTraffic.Unlimited;
-        filteredSubs = filteredSubs.filter((sub) =>
+        filteredSubs = filteredSubs.filter(sub =>
           trafficBool
             ? sub.totalTrafficBytes === null
             : sub.totalTrafficBytes !== null
@@ -140,7 +139,7 @@ export function createRouter(db: {
       // 永久有效筛选
       if (validity) {
         const validityBool = validity === SubscriptionValidity.Permanent;
-        filteredSubs = filteredSubs.filter((sub) => {
+        filteredSubs = filteredSubs.filter(sub => {
           const expireAt = sub.expireAt;
           return validityBool ? expireAt === "" : expireAt !== "";
         });
@@ -169,7 +168,7 @@ export function createRouter(db: {
   });
 
   // 创建订阅
-  router.post("/api/subscription", authMiddleware, async (ctx) => {
+  router.post("/api/subscription", authMiddleware, async ctx => {
     try {
       const parsed = subInputSchema.safeParse(ctx.request.body);
       if (!parsed.success) {
@@ -204,7 +203,7 @@ export function createRouter(db: {
   });
 
   // 置顶订阅
-  router.put("/api/subscription/pinned", authMiddleware, async (ctx) => {
+  router.put("/api/subscription/pinned", authMiddleware, async ctx => {
     try {
       const { pinnedIds } = ctx.request.body as { pinnedIds: string[] };
       console.log(pinnedIds);
@@ -221,13 +220,13 @@ export function createRouter(db: {
       }
 
       // 清除所有现有的置顶状态
-      db.data.subscriptions.forEach((sub) => {
+      db.data.subscriptions.forEach(sub => {
         delete sub.pinnedOrder;
       });
 
       // 设置新的置顶状态
       pinnedIds.forEach((id: string, index: number) => {
-        const sub = db.data.subscriptions.find((s) => s.id === id);
+        const sub = db.data.subscriptions.find(s => s.id === id);
         if (sub) {
           sub.pinnedOrder = index;
           sub.lastUpdatedAt = dayjs().toISOString();
@@ -244,10 +243,10 @@ export function createRouter(db: {
   });
 
   // 更新订阅
-  router.put("/api/subscription/:id", authMiddleware, async (ctx) => {
+  router.put("/api/subscription/:id", authMiddleware, async ctx => {
     try {
       const { id } = ctx.params;
-      const subIndex = db.data.subscriptions.findIndex((s) => s.id === id);
+      const subIndex = db.data.subscriptions.findIndex(s => s.id === id);
 
       if (subIndex === -1) {
         ctx.status = 404;
@@ -281,10 +280,10 @@ export function createRouter(db: {
   });
 
   // 删除订阅
-  router.delete("/api/subscription/:id", authMiddleware, async (ctx) => {
+  router.delete("/api/subscription/:id", authMiddleware, async ctx => {
     try {
       const { id } = ctx.params;
-      const subIndex = db.data.subscriptions.findIndex((s) => s.id === id);
+      const subIndex = db.data.subscriptions.findIndex(s => s.id === id);
 
       if (subIndex === -1) {
         ctx.status = 404;
@@ -304,9 +303,9 @@ export function createRouter(db: {
   });
 
   // 启用/禁用订阅
-  router.post("/api/subscription/:id/toggle", async (ctx) => {
+  router.post("/api/subscription/:id/toggle", async ctx => {
     const { id } = ctx.params as { id: string };
-    const sub = db.data.subscriptions.find((s) => s.id === id);
+    const sub = db.data.subscriptions.find(s => s.id === id);
     if (!sub) {
       ctx.status = 404;
       ctx.body = createErrorResponse("订阅不存在");
@@ -323,10 +322,10 @@ export function createRouter(db: {
 
   // 订阅接口（公开访问）
   // 订阅url格式：http://192.168.0.121:3001/subscribe?id=c730fb28-3ec0-4196-be40-d667a3e18464&t=176104878698
-  router.get("/subscribe", async (ctx) => {
+  router.get("/subscribe", async ctx => {
     try {
       const { id, yaml } = ctx.query as { id: string; yaml: string };
-      const sub = db.data.subscriptions.find((s) => s.id === id);
+      const sub = db.data.subscriptions.find(s => s.id === id);
       if (!sub) {
         ctx.status = 404;
         ctx.body = createErrorResponse("订阅不存在");
@@ -457,7 +456,7 @@ export function createRouter(db: {
   }
 
   // 获取订阅基础 URL（用于生成订阅链接）
-  router.get("/api/subscription-base-url", authMiddleware, async (ctx) => {
+  router.get("/api/subscription-base-url", authMiddleware, async ctx => {
     try {
       let subscriptionBaseUrl: string;
 
@@ -482,7 +481,7 @@ export function createRouter(db: {
   });
 
   // 获取设置（暂时没用到，先保留）
-  router.get("/api/settings", authMiddleware, async (ctx) => {
+  router.get("/api/settings", authMiddleware, async ctx => {
     try {
       let baseUrl: string;
 
@@ -511,7 +510,7 @@ export function createRouter(db: {
   });
 
   // 更新设置
-  router.put("/api/settings", authMiddleware, async (ctx) => {
+  router.put("/api/settings", authMiddleware, async ctx => {
     try {
       ctx.body = createSuccessResponse(null, "设置更新成功");
     } catch (error) {
@@ -522,10 +521,10 @@ export function createRouter(db: {
   });
 
   // 获取用户信息
-  router.get("/api/user/profile", authMiddleware, async (ctx) => {
+  router.get("/api/user/profile", authMiddleware, async ctx => {
     try {
       const userId = ctx.state.user.id;
-      const user = db.data.users.find((u) => u.id === userId);
+      const user = db.data.users.find(u => u.id === userId);
 
       if (!user) {
         ctx.status = 404;
@@ -553,7 +552,7 @@ export function createRouter(db: {
   });
 
   // 更新用户信息
-  router.put("/api/user/profile", authMiddleware, async (ctx) => {
+  router.put("/api/user/profile", authMiddleware, async ctx => {
     try {
       const userId = ctx.state.user.id;
       const { username, email, phone } = ctx.request.body as {
@@ -562,7 +561,7 @@ export function createRouter(db: {
         phone?: string;
       };
 
-      const userIndex = db.data.users.findIndex((u) => u.id === userId);
+      const userIndex = db.data.users.findIndex(u => u.id === userId);
       if (userIndex === -1) {
         ctx.status = 404;
         ctx.body = createErrorResponse("用户不存在");
@@ -601,7 +600,7 @@ export function createRouter(db: {
   });
 
   // 修改密码
-  router.post("/api/user/change-password", authMiddleware, async (ctx) => {
+  router.post("/api/user/change-password", authMiddleware, async ctx => {
     try {
       const userId = ctx.state.user.id;
       const { currentPassword, newPassword } = ctx.request.body as {
@@ -609,7 +608,7 @@ export function createRouter(db: {
         newPassword: string;
       };
 
-      const user = db.data.users.find((u) => u.id === userId);
+      const user = db.data.users.find(u => u.id === userId);
       if (!user) {
         ctx.status = 404;
         ctx.body = createErrorResponse("用户不存在");
@@ -647,13 +646,13 @@ export function createRouter(db: {
   });
 
   // 上传头像
-  router.post("/api/user/avatar", authMiddleware, async (ctx) => {
+  router.post("/api/user/avatar", authMiddleware, async ctx => {
     try {
       const userId = ctx.state.user.id;
 
       // 使用 multer 处理文件上传
       await new Promise<void>((resolve, reject) => {
-        upload.single("avatar")(ctx.req as any, ctx.res as any, (err) => {
+        upload.single("avatar")(ctx.req as any, ctx.res as any, err => {
           if (err) {
             reject(err);
           } else {
@@ -673,7 +672,7 @@ export function createRouter(db: {
       const avatarUrl = generateAvatarUrl(`${file.filename}`);
 
       // 更新用户头像
-      const userIndex = db.data.users.findIndex((u) => u.id === userId);
+      const userIndex = db.data.users.findIndex(u => u.id === userId);
       if (userIndex !== -1) {
         // 删除旧头像文件（如果存在且不是默认头像）
         const oldAvatar = db.data.users[userIndex].avatar;
@@ -714,7 +713,7 @@ export function createRouter(db: {
   });
 
   // 备份
-  router.get("/api/export", async (ctx) => {
+  router.get("/api/export", async ctx => {
     try {
       // 只导出订阅和设置，不包含用户数据
       const exportData = {
@@ -737,7 +736,7 @@ export function createRouter(db: {
   });
 
   // 恢复
-  router.post("/api/import", async (ctx) => {
+  router.post("/api/import", async ctx => {
     const incoming = ctx.request.body as any;
 
     let importData: Partial<DbSchema>;

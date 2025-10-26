@@ -25,7 +25,7 @@ COPY server/ ./server/
 RUN pnpm --filter server run build
 
 # 生产镜像阶段
-FROM node:18-alpine
+FROM alpine:latest
 WORKDIR /app
 
 # 安装 pnpm
@@ -54,12 +54,6 @@ RUN chmod +x /app/start.sh
 # 设置环境变量
 ENV NODE_ENV=production
 ENV PORT=3001
-
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-RUN chown -R nextjs:nodejs /app
-USER nextjs
 
 # 暴露端口
 EXPOSE 3001

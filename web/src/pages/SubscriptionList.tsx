@@ -46,6 +46,7 @@ import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
+  // @ts-ignore
 } from "@sub-proxy/types";
 
 dayjs.extend(relativeTime);
@@ -63,9 +64,9 @@ export function SubscriptionList() {
   // 从后端数据中获取置顶状态
   const pinned = useMemo(() => {
     return subs
-      .filter((s) => s.pinnedOrder !== undefined)
+      .filter(s => s.pinnedOrder !== undefined)
       .sort((a, b) => (a.pinnedOrder || 0) - (b.pinnedOrder || 0))
-      .map((s) => s.id);
+      .map(s => s.id);
   }, [subs]);
   const navigate = useNavigate();
 
@@ -123,11 +124,11 @@ export function SubscriptionList() {
     }
     // 如果统计数据还未加载，使用本地计算作为后备
     const total = subs.length;
-    const enabled = subs.filter((s) => s.enabled).length;
+    const enabled = subs.filter(s => s.enabled).length;
     const unlimitedTraffic = subs.filter(
-      (s) => s.totalTrafficBytes === null
+      s => s.totalTrafficBytes === null
     ).length;
-    const permanent = subs.filter((s) => {
+    const permanent = subs.filter(s => {
       const startTime = dayjs(s.startAt);
       const expireTime = dayjs(s.expireAt);
       return expireTime.diff(startTime, "year") > 50;
@@ -213,7 +214,7 @@ export function SubscriptionList() {
 
     if (exists) {
       // 取消置顶
-      newPinned = pinned.filter((x) => x !== id);
+      newPinned = pinned.filter(x => x !== id);
     } else {
       // 添加置顶
       if (pinned.length >= 3) {
@@ -431,7 +432,7 @@ export function SubscriptionList() {
                   allowClear
                   value={keyword}
                   placeholder="输入订阅名称搜索..."
-                  onChange={(e) => setKeyword(e.target.value)}
+                  onChange={e => setKeyword(e.target.value)}
                   onSearch={searchSubs}
                   enterButton
                   loading={loading}

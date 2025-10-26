@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 services:
   sub-proxy:
     build: .
     container_name: sub-proxy-app
     restart: unless-stopped
     ports:
-      - "3001:3001"  # 前端管理界面和订阅接口
+      - "3001:3001" # 前端管理界面和订阅接口
     volumes:
       # 数据持久化 - 映射到外部文件夹
       # 只映射运行时数据，不映射默认数据文件
@@ -19,7 +19,15 @@ services:
       # 示例: http://192.168.0.1:45719 或 https://your-domain.com
       - BASE_URL=${BASE_URL:-http://localhost:3001}
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/health"
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

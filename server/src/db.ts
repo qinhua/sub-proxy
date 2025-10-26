@@ -30,21 +30,29 @@ export async function createDb() {
     defaultData = JSON.parse(defaultDataContent);
 
     // 确保管理员密码是加密的
-    const adminUser = defaultData.users.find((u) => u.id === ADMIN_USER_ID);
+    const adminUser = defaultData.users.find(u => u.id === ADMIN_USER_ID);
     if (adminUser) {
       // 检查密码是否已经是 bcrypt 哈希格式（以 $2b$ 或 $2a$ 开头）
-      const isHashedFormat = adminUser.password.startsWith("$2b$") || adminUser.password.startsWith("$2a$");
-      
+      const isHashedFormat =
+        adminUser.password.startsWith("$2b$") ||
+        adminUser.password.startsWith("$2a$");
+
       let needRehash = false;
-      
+
       // 如果密码不是哈希格式，或者是明文的默认密码，则需要重新哈希
-      if (!isHashedFormat || adminUser.password === DEFAULT_ADMIN_PASSWORD_RAW) {
+      if (
+        !isHashedFormat ||
+        adminUser.password === DEFAULT_ADMIN_PASSWORD_RAW
+      ) {
         needRehash = true;
       } else {
         // 如果是哈希格式，验证它是否与默认密码匹配
         try {
           const { comparePassword } = await import("./auth.js");
-          const isValid = await comparePassword(DEFAULT_ADMIN_PASSWORD_RAW, adminUser.password);
+          const isValid = await comparePassword(
+            DEFAULT_ADMIN_PASSWORD_RAW,
+            adminUser.password
+          );
           if (!isValid) {
             needRehash = true;
           }
@@ -53,7 +61,7 @@ export async function createDb() {
           needRehash = true;
         }
       }
-      
+
       if (needRehash) {
         console.log("Rehashing admin password");
         adminUser.password = await hashPassword(DEFAULT_ADMIN_PASSWORD_RAW);

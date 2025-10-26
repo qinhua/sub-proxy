@@ -50,7 +50,7 @@ async function main() {
   app.use(apiRouter.routes()).use(apiRouter.allowedMethods());
 
   // Health check route (after API routes)
-  router.get("/health", async (ctx) => {
+  router.get("/health", async ctx => {
     ctx.body = { ok: true };
   });
   app.use(router.routes()).use(router.allowedMethods());
@@ -91,7 +91,7 @@ async function main() {
   });
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error(err);
   process.exit(1);
 });
