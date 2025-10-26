@@ -39,7 +39,6 @@ import { api } from "../api";
 import { buildSubscriptionUrl } from "../utils/subscriptionUrl";
 import type { Subscription } from "../types";
 import { useNavigate } from "react-router-dom";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { debounce } from "lodash-es";
 import dayjs from "dayjs";
 import {
@@ -48,8 +47,6 @@ import {
   SubscriptionValidity
   // @ts-ignore
 } from "@sub-proxy/types";
-
-dayjs.extend(relativeTime);
 
 export function SubscriptionList() {
   const [subs, setSubs] = useState<Subscription[]>([]);

@@ -89,11 +89,11 @@ function MainLayout() {
     {
       type: "divider" as const
     },
-    {
-      key: "help",
-      icon: <QuestionCircleOutlined />,
-      label: "帮助中心"
-    },
+    // {
+    //   key: "help",
+    //   icon: <QuestionCircleOutlined />,
+    //   label: "帮助中心"
+    // },
     {
       key: "logout",
       icon: <LogoutOutlined />,
