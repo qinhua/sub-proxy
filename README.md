@@ -1,9 +1,10 @@
+<br/>
 <p align="center">
    <a class="logo" href="https://github.com/qinhua/sub-proxy">
      <img src="./docs/logo.png" style="width:120px;border-radius:50%" alt="SubProxy"/>
    </a>
 </p>
-<h1 align="center">SubProxy</h1>
+<h1 align="center" style="margin:0;">SubProxy</h1>
 <p align="center">一个基于 Koa + React 的现代订阅代理管理系统，支持 Docker 部署和数据持久化。</p>
 <p class="badge-row" align="center">
   <a href="https://react.docschina.org" target="_blank">
