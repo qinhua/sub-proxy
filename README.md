@@ -1,6 +1,7 @@
 <p align="center">
    <a class="logo" href="https://github.com/qinhua/sub-proxy">
      <img src="./docs/logo.jpg" style="width:120px;border-radius:50%" alt="SubProxy"/>
+   </a>
 </p>
 <h1 align="center">SubProxy</h1>
 <p align="center">一个基于 Koa + React 的现代订阅代理管理系统，支持 Docker 部署和数据持久化。</p>
@@ -372,7 +373,7 @@ docker logs <容器名称>
 
 ## 📄 许可证
 
-MIT License
+<a href="https://github.com/qinhua/sub-proxy/blob/main/LICENSE" target="_blank">MIT License</a>
 
 ## 🤝 贡献
 
