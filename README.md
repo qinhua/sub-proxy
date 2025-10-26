@@ -1,6 +1,6 @@
 <p align="center">
    <a class="logo" href="https://github.com/qinhua/sub-proxy">
-     <img src="./docs/logo.jpg" style="width:120px;border-radius:50%" alt="SubProxy"/>
+     <img src="./docs/logo.png" style="width:120px;border-radius:50%" alt="SubProxy"/>
    </a>
 </p>
 <h1 align="center">SubProxy</h1>
