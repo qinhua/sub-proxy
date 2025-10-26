@@ -376,7 +376,7 @@ export function createRouter(db: {
       const headerComment = [
         `# Subscription Info Header`,
         `info:`,
-        ` id: "${id}  # 订阅ID`,
+        ` id: "${id}"  # 订阅ID`,
         ` title: "${filename}"  # 标题`,
         ` website: "${webPageUrl}"  # 网站`,
         ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"  # 来源`,
