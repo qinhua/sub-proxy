@@ -50,12 +50,11 @@ curl http://localhost:3001/health
 # 创建数据目录
 mkdir -p /opt/sub-proxy/{data,upload,logs}
 
-# 启动容器
+# 启动容器，（数据卷根据情况自己修改）
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
   -p 3001:3001 \
-  -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   -v /opt/sub-proxy/data:/app/server/data \
   -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \

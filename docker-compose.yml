@@ -10,7 +10,7 @@ services:
       # 数据持久化 - 映射到外部文件夹
       # 只映射运行时数据，不映射默认数据文件
       - sub-proxy-data:/app/server/data
-      - sub-proxy-upload:/app/upload
+      - sub-proxy-upload:/app/server/upload
       - sub-proxy-logs:/app/logs
     environment:
       - NODE_ENV=production
@@ -24,7 +24,7 @@ services:
           "--spider",
           "http://localhost:3001/health"
         ]
-      interval: 30s
+      interval: 60s
       timeout: 10s
       retries: 3
       start_period: 40s
