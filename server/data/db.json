@@ -51,13 +51,13 @@
     {
       "id": "admin-001",
       "username": "admin",
-      "password": "$2b$10$pbpgf6UmvwiyJe81ll2DO.GHKWHmMUNCWUbrR.wB5bNfHCzyPCmYK",
+      "password": "$2b$10$I2W04dPJVIhYBY49qOYAYOzN8R/BQ/VhimSC/cZ3qCmPABGt0BBhq",
       "createdAt": "2025-10-24T16:35:18.920Z",
-      "lastLoginAt": "2025-10-26T17:15:56.016Z",
-      "avatar": "/upload/avatar/82b0a8f0a226.jpg",
+      "lastLoginAt": "2025-10-27T12:16:15.099Z",
+      "avatar": "/upload/avatar/17c221fa2ce3.jpg",
       "email": "qinhua68@gmail.com",
       "phone": "13260610021",
-      "lastUpdatedAt": "2025-10-26T17:26:12.431Z"
+      "lastUpdatedAt": "2025-10-27T12:16:35.550Z"
     }
   ]
 }

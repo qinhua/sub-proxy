@@ -78,8 +78,7 @@ export function Profile() {
       if (user) {
         const updatedUser = {
           ...user,
-          ...values,
-          avatar: values.avatar
+          ...values
         };
         login(localStorage.getItem("token") || "", updatedUser);
       }
