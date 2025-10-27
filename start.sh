@@ -14,8 +14,8 @@ DEFAULT_AVATAR_SOURCE="server/upload/avatar/default_avatar.png"
 if [ ! -f "$DEFAULT_AVATAR_SOURCE" ]; then
     echo "复制默认头像文件"
     # 从镜像根目录复制默认头像文件（不会被卷映射覆盖）
-    if [ -f "/app/default_avatar.png" ]; then
-        cp /app/default_avatar.png "$DEFAULT_AVATAR_SOURCE"
+    if [ -f "/app/server/default_avatar.png" ]; then
+        cp /app/server/default_avatar.png "$DEFAULT_AVATAR_SOURCE"
         echo "默认头像文件已从镜像复制"
     else
         # 如果在容器中也找不到默认头像，则创建一个简单的默认头像

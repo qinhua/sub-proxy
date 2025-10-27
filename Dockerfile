@@ -49,7 +49,7 @@ COPY --from=server-builder /app/server/dist ./server/dist
 # 只复制默认数据文件
 COPY --from=server-builder /app/server/data/db_default.json ./server/data/
 # 复制默认头像文件到不会被卷映射覆盖的位置
-COPY --from=server-builder /app/server/upload/avatar/default_avatar.png ./default_avatar.png
+COPY --from=server-builder /app/server/upload/avatar/default_avatar.png ./server/default_avatar.png
 
 # 拷贝共享包构建产物
 COPY --from=server-builder /app/shared/types/dist ./shared/types/dist
