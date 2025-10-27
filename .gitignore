@@ -18,9 +18,11 @@ coverage/
 
 # Logs
 *.log
+**/tsconfig.tsbuildinfo
 
-# Uploaded files (e.g., avatars)
-upload/
+# Avatar files
+server/upload/avatar/*
+!server/upload/avatar/default_avatar.png
 
 # Database files
 *.sqlite

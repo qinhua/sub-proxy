@@ -76,6 +76,20 @@ export function createRouter(db: {
     ctx.body = { ok: true };
   });
 
+  // 应用版本信息
+  router.get("/api/version", async ctx => {
+    // 使用当前时间戳作为版本标识
+    const version = new Date().toISOString();
+    ctx.body = {
+      success: true,
+      data: {
+        version,
+        timestamp: version
+      },
+      message: "获取版本信息成功"
+    };
+  });
+
   // 订阅统计
   router.get("/api/subscriptions/stats", authMiddleware, async ctx => {
     try {
