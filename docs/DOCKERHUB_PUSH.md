@@ -68,10 +68,9 @@ docker run -d \
   --restart unless-stopped \
   -p 3001:3001 \
   -v /opt/sub-proxy/data:/app/server/data \
-  -v /opt/sub-proxy/upload:/app/upload \
+  -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \
   -e NODE_ENV=production \
-  -e PORT=3001 \
   YOUR_USERNAME/sub-proxy:latest
 ```
 

@@ -680,9 +680,16 @@ export function createRouter(db: {
           const oldFilename = oldAvatar.split("/").pop();
           // 保护默认头像文件，不删除 default_avatar.png
           if (oldFilename && oldFilename !== "default_avatar.png") {
+            // const oldFilePath = path.join(
+            //   process.cwd(),
+            //   "upload/avatar",
+            //   oldFilename
+            // );
             const oldFilePath = path.join(
-              process.cwd(),
-              "upload/avatar",
+              __dirname,
+              "..",
+              "upload",
+              "avatar",
               oldFilename
             );
             if (fs.existsSync(oldFilePath)) {

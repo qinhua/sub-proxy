@@ -13,8 +13,8 @@
 
 ### 镜像信息
 
-- **镜像文件**: `sub-proxy.tar` (约 90MB)
 - **镜像标签**: `sub-proxy:latest`
+- **镜像文件**: `sub-proxy.tar` (约 90MB)
 - **基础镜像**: `alpine:latest` (兼容 iStoreOS)
 - **默认端口**: `3001`
 - **默认账号**: `admin` / `admin123456`
@@ -28,7 +28,7 @@ docker load -i sub-proxy.tar
 # 2. 创建数据目录
 mkdir -p /opt/sub-proxy/{data,upload,logs}
 
-# 3. 启动容器（本地）
+# 3. 启动容器（运行本地镜像）
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \

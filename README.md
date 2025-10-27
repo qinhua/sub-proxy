@@ -66,13 +66,13 @@
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/qinhua/sub-proxy.git
 cd sub-proxy
 
 # 使用 Docker Compose 部署
 docker-compose up -d
 
-# 或使用 Docker 命令部署
+# 或使用 Docker 命令部署（数据卷根据情况自己修改）
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
@@ -80,12 +80,13 @@ docker run -d \
   -v /opt/sub-proxy/data:/app/server/data \
   -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \
-  sub-proxy:latest
+  marekqin/sub-proxy:latest
+/bin/sh -c ./start.sh
 ```
 
 ### 访问系统
 
-- **管理界面**：http://localhost:5173
+- **管理界面**：http://[你的IP]:3001
 - **默认账号**：admin
 - **默认密码**：admin123456
 
@@ -168,16 +169,6 @@ pnpm dev
 pnpm build
 ```
 
-### 环境变量
-
-```bash
-# 复制环境变量模板
-cp env.example .env
-
-# 编辑环境变量
-vim .env
-```
-
 ## 📦 部署方式
 
 ### 1. Docker Compose 部署（推荐）
@@ -242,7 +233,7 @@ docker-compose up -d
 | Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
 | ---------------------------------- | ----------- | ------------ | ------ |
 | `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅     |
-| `/app/upload/`                     | `./upload/` | 用户上传文件 | ✅     |
+| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅     |
 | `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
 | `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
 
