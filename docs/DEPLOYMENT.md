@@ -47,10 +47,7 @@ curl http://localhost:3001/health
 ### 普通部署
 
 ```bash
-# 创建数据目录
-mkdir -p /opt/sub-proxy/{data,upload,logs}
-
-# 启动容器，（数据卷根据情况自己修改）
+# 映射目录根据情况自己修改
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
@@ -58,6 +55,20 @@ docker run -d \
   -v /opt/sub-proxy/data:/app/server/data \
   -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \
+  marekqin/sub-proxy:latest
+/bin/sh -c ./start.sh
+```
+
+### 部署到 iStoreOS 软路由（指定映射目录）
+
+```bash
+docker run -d \
+  --name sub-proxy-app \
+  --restart unless-stopped \
+  -p 3001:3001 \
+  -v /mnt/nvme0n1-4/Configs/sub-proxy/data:/app/server/data \
+  -v /mnt/nvme0n1-4/Configs/sub-proxy/upload:/app/server/upload \
+  -v /mnt/nvme0n1-4/Configs/sub-proxy/logs:/app/logs \
   marekqin/sub-proxy:latest
 /bin/sh -c ./start.sh
 ```

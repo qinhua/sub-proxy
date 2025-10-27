@@ -237,17 +237,6 @@ docker-compose up -d
 | `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
 | `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
 
-### 环境变量
-
-```bash
-# 基础 URL 配置
-BASE_URL=http://192.168.0.1:3001
-
-# 数据库配置
-NODE_ENV=production
-PORT=3001
-```
-
 ## 📚 文档
 
 - [完整部署指南](docs/DEPLOYMENT.md) - 包含所有部署、数据管理、密码重置等完整指南

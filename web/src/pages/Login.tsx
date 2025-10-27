@@ -1,15 +1,5 @@
 import React, { useState } from "react";
-import {
-  Form,
-  Input,
-  Button,
-  Card,
-  Typography,
-  Space,
-  Alert,
-  Spin,
-  Avatar
-} from "antd";
+import { Form, Input, Button, Card, Typography, Alert, Avatar } from "antd";
 import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "../contexts/AuthContext";
 import ImgLogo from "../assets/img/logo.jpg";

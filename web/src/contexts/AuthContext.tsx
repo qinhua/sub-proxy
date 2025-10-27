@@ -97,13 +97,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (response.ok) {
-        // 保存当前版本到 localStorage
-        localStorage.setItem("appVersion", currentVersion);
-        setLoading(false);
-      } else {
-        // Token 无效，清除认证状态
-        logout();
+        const result = await response.json();
+        if (result.success) {
+          // 保存当前版本到 localStorage
+          localStorage.setItem("appVersion", currentVersion);
+          setLoading(false);
+          return;
+        }
       }
+      
+      // Token 无效，清除认证状态
+      logout();
     } catch (error) {
       console.error("Token verification failed:", error);
       logout();
@@ -115,17 +119,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(newUser);
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
-    
+
     // 保存当前版本到 localStorage
     fetch("/api/version")
       .then(response => response.json())
       .then(data => {
-        localStorage.setItem("appVersion", data.data.version);
+        if (data.success) {
+          localStorage.setItem("appVersion", data.data.version);
+        }
       })
       .catch(error => {
         console.error("Failed to save app version:", error);
       });
-    
+
     setLoading(false);
   };
 

@@ -78,13 +78,17 @@ export function createRouter(db: {
 
   // 应用版本信息
   router.get("/api/version", async ctx => {
-    // 使用当前时间戳作为版本标识
-    const version = new Date().toISOString();
+    // 从 package.json 读取版本号
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "../..", "package.json"), "utf-8")
+    );
+    const version = packageJson.version || "1.0.0";
+
     ctx.body = {
       success: true,
       data: {
         version,
-        timestamp: version
+        timestamp: new Date().toISOString()
       },
       message: "获取版本信息成功"
     };
@@ -341,7 +345,7 @@ export function createRouter(db: {
   });
 
   // 订阅接口（公开访问）
-  // 订阅url格式：http://192.168.0.121:3001/subscribe?id=c730fb28-3ec0-4196-be40-d667a3e18464&t=176104878698
+  // 订阅url格式：http://192.168.0.1:3001/subscribe?id=c730fb28-3ec0-4196-be40-d667a3e18464&t=176104878698
   router.get("/subscribe", async ctx => {
     try {
       const { id, yaml } = ctx.query as { id: string; yaml: string };
@@ -694,11 +698,6 @@ export function createRouter(db: {
           const oldFilename = oldAvatar.split("/").pop();
           // 保护默认头像文件，不删除 default_avatar.png
           if (oldFilename && oldFilename !== "default_avatar.png") {
-            // const oldFilePath = path.join(
-            //   process.cwd(),
-            //   "upload/avatar",
-            //   oldFilename
-            // );
             const oldFilePath = path.join(
               __dirname,
               "..",
