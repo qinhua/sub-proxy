@@ -5,7 +5,7 @@
    </a>
 </div>
 <h1 align="center">SubProxy</h1>
-<p align="center">一个基于 Koa + React 的现代订阅代理管理系统，支持 Docker 部署和数据持久化。</p>
+<p align="center">一个基于 Koa + React 的现代订阅代理管理系统，支持 Docker 部署和数据持久化。可用于个人或团队使用，统一管理和分享订阅代理。</p>
 <p class="badge-row" align="center">
   <a href="https://react.docschina.org" target="_blank">
     <img src="https://img.shields.io/badge/react-18.3.1-cyan?logo=react" alt="React"/>
@@ -395,6 +395,12 @@ docker logs <容器名称>
 - 添加适当的注释和文档
 - 确保测试通过
 
+### TODO
+
+- [ ] 支持订阅转换功能
+- [ ] 支持外挂第三方订阅
+- [ ] 支持配置文件正确性检测
+
 ## 📞 支持
 
 如果遇到问题，请：
@@ -410,10 +416,9 @@ docker logs <容器名称>
 - **Issues**: [问题反馈](https://github.com/qinhua/sub-proxy/issues)
 - **Discussions**: [讨论区](https://github.com/qinhua/sub-proxy/discussions)
 
----
-
 <br/>
 
+---
 <div align="center">
 
 **SubProxy** - 让订阅管理更简单！
