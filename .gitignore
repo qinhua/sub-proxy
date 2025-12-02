@@ -26,6 +26,7 @@ server/upload/avatar/*
 
 # Database files
 *.sqlite
+server/data/db.json
 
 # OS and IDE files
 .DS_Store
