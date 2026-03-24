@@ -15,8 +15,8 @@
     "clash",
     "subproxy",
     "openclash",
-    "shadowrocket",
-    "clashverge"
+    "clashverge",
+    "shadowrocket"
   ],
   "scripts": {
     "dev": "concurrently \"pnpm --filter server run dev\" \"pnpm --filter web run dev\"",

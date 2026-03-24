@@ -158,7 +158,7 @@ function MainLayout() {
           </a>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 30 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Button
             type="link"
             icon={<IconGitHub />}
@@ -199,7 +199,7 @@ function MainLayout() {
         {/* 左侧菜单 - 固定高度 */}
         <div
           style={{
-            width: collapsed ? 50 : 250,
+            width: collapsed ? 70 : 250,
             background: "#fff",
             boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
             height: "100%",
@@ -214,14 +214,20 @@ function MainLayout() {
             selectedKeys={getSelectedKey()}
             items={menuItems.map(item => ({
               ...item,
-              style: { height: 66, paddingLeft: 14, paddingRight: 14 }
+              label: collapsed ? '' : item.label,
+              style: {
+                justifyContent: collapsed ? "center" : "flex-start",
+                height: 50,
+                // paddingLeft: 14,
+                paddingRight: 14
+              }
             }))}
             style={{
               flex: 1,
               borderRight: 0,
               paddingTop: 16,
               fontWeight: 600,
-              fontSize: 16
+              fontSize: 16,
             }}
           />
           {/* 菜单底部折叠按钮 */}

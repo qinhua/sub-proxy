@@ -8,7 +8,7 @@ import {
 import { LogoutSystem } from "./utils";
 
 // 获取 API 基础 URL
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
+export const API_BASE_URL = (import.meta as any).env?.VITE_APP_API_BASE_URL;
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   // 如果是相对路径，添加 API 基础 URL
@@ -110,6 +110,10 @@ export const api = {
     request<ApiResponse>(`/api/subscription/${id}`, { method: "DELETE" }),
   toggleSub: (id: string) =>
     request<ApiResponse<Subscription>>(`/api/subscription/${id}/toggle`, {
+      method: "POST"
+    }),
+  fetchNodes: (id: string) =>
+    request<ApiResponse>(`/api/subscription/${id}/fetch-nodes`, {
       method: "POST"
     }),
   updatePinnedOrder: (pinnedIds: string[]) =>

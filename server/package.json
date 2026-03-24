@@ -13,6 +13,7 @@
     "@sub-proxy/types": "workspace:*",
     "@types/multer": "^2.0.0",
     "dayjs": "^1.11.13",
+    "dotenv": "^17.3.1",
     "koa": "^3.0.3",
     "koa-bodyparser": "^4.4.1",
     "koa-cors": "^0.0.16",

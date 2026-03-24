@@ -65,6 +65,7 @@ export interface DbSchema {
 export interface Subscription {
   id: string;
   name: string;
+  description?: string;
   enabled: boolean;
   totalTrafficBytes: number | null;
   startAt: string;
@@ -73,4 +74,24 @@ export interface Subscription {
   lastUpdatedAt: string;
   yamlConfig: string;
   pinnedOrder?: number;
+  configMode?: 'yaml' | 'visual';
+  visualConfig?: {
+    baseConfig?: string;
+    proxyProviders?: {
+      id: string;
+      name: string;
+      type: 'url' | 'content';
+      url?: string;
+      content?: string;
+      updateInterval?: number;
+      fetchedNodes?: any[];
+      lastFetchTime?: string;
+    }[];
+    chainProxies?: {
+      id: string;
+      name: string; // The proxy group name
+      secondHopConfig?: string;
+    }[];
+    rules?: string;
+  };
 }

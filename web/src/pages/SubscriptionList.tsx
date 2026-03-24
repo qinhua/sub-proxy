@@ -12,9 +12,7 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
   Tooltip,
-  Badge,
   Input,
   Select
 } from "antd";
@@ -26,6 +24,7 @@ import {
   QrcodeOutlined,
   DeleteOutlined,
   PoweroffOutlined,
+  PlayCircleOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   GlobalOutlined,
@@ -37,6 +36,8 @@ import {
 } from "@ant-design/icons";
 import { api } from "../api";
 import { buildSubscriptionUrl } from "../utils/subscriptionUrl";
+import StateCard from "../components/StateCard";
+
 import type { Subscription } from "../types";
 import { useNavigate } from "react-router-dom";
 import { debounce } from "lodash-es";
@@ -276,119 +277,40 @@ export function SubscriptionList() {
         </Typography.Title>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} lg={6}>
-            <Card
-              className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500"
-              styles={{ body: { padding: "20px" } }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <Statistic
-                    title={
-                      <span className="text-gray-600 font-medium">
-                        总订阅数
-                      </span>
-                    }
-                    value={displayStats.total}
-                    valueStyle={{
-                      color: "#1890ff",
-                      fontSize: "28px",
-                      fontWeight: "bold"
-                    }}
-                  />
-                  <div className="mt-2 text-sm text-gray-500">所有订阅配置</div>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <CheckCircleOutlined className="text-2xl text-blue-500" />
-                </div>
-              </div>
-            </Card>
+            <StateCard
+              title="总订阅数"
+              subTitle="所有订阅配置"
+              value={displayStats.total}
+              bgColor="#1890ff"
+              icon={<CheckCircleOutlined className="text-2xl text-blue-500" />}
+            />
           </Col>
-
           <Col xs={24} sm={12} lg={6}>
-            <Card
-              className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500"
-              styles={{ body: { padding: "20px" } }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <Statistic
-                    title={
-                      <span className="text-gray-600 font-medium">已启用</span>
-                    }
-                    value={displayStats.enabled}
-                    valueStyle={{
-                      color: "#52c41a",
-                      fontSize: "28px",
-                      fontWeight: "bold"
-                    }}
-                  />
-                  <div className="mt-2 text-sm text-gray-500">活跃订阅数量</div>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <ThunderboltOutlined className="text-2xl text-green-500" />
-                </div>
-              </div>
-            </Card>
+            <StateCard
+              title="已启用"
+              subTitle="活跃订阅数量"
+              value={displayStats.enabled}
+              bgColor="#52c41a"
+              icon={<ThunderboltOutlined className="text-2xl text-green-500" />}
+            />
           </Col>
-
           <Col xs={24} sm={12} lg={6}>
-            <Card
-              className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500"
-              styles={{ body: { padding: "20px" } }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <Statistic
-                    title={
-                      <span className="text-gray-600 font-medium">
-                        无限流量
-                      </span>
-                    }
-                    value={displayStats.unlimitedTraffic}
-                    valueStyle={{
-                      color: "#722ed1",
-                      fontSize: "28px",
-                      fontWeight: "bold"
-                    }}
-                  />
-                  <div className="mt-2 text-sm text-gray-500">
-                    无流量限制订阅
-                  </div>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <RocketOutlined className="text-2xl text-purple-500" />
-                </div>
-              </div>
-            </Card>
+            <StateCard
+              title="无限流量"
+              subTitle="无流量限制订阅"
+              value={displayStats.unlimitedTraffic}
+              bgColor="#722ed1"
+              icon={<RocketOutlined className="text-2xl text-purple-500" />}
+            />
           </Col>
-
           <Col xs={24} sm={12} lg={6}>
-            <Card
-              className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500"
-              styles={{ body: { padding: "20px" } }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <Statistic
-                    title={
-                      <span className="text-gray-600 font-medium">
-                        永久有效
-                      </span>
-                    }
-                    value={displayStats.permanent}
-                    valueStyle={{
-                      color: "#fa8c16",
-                      fontSize: "28px",
-                      fontWeight: "bold"
-                    }}
-                  />
-                  <div className="mt-2 text-sm text-gray-500">长期有效订阅</div>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <StarOutlined className="text-2xl text-orange-500" />
-                </div>
-              </div>
-            </Card>
+            <StateCard
+              title="永久有效"
+              subTitle="永久有效订阅"
+              value={displayStats.permanent}
+              bgColor="#fa8c16"
+              icon={<StarOutlined className="text-2xl text-orange-500" />}
+            />
           </Col>
         </Row>
       </div>
@@ -665,7 +587,7 @@ function RowActions({
           <Button
             type="text"
             style={{ width: 36 }}
-            icon={<PoweroffOutlined />}
+            icon={sub.enabled ? <PoweroffOutlined /> : <PlayCircleOutlined />}
             onClick={async () => {
               await api.toggleSub(sub.id);
               onChanged();

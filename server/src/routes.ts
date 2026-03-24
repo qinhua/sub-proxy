@@ -1,14 +1,15 @@
-import Router from "@koa/router";
-import { z } from "zod";
-import dayjs from "dayjs";
-import * as uuid from "uuid";
-import multer from "multer";
-import { generateAvatarUrl } from "./utils";
 import path from "path";
 import fs from "fs";
 import os from "os";
-import { fileURLToPath } from "url";
+import Router from "@koa/router";
+import * as uuid from "uuid";
+import multer from "multer";
+import dayjs from "dayjs";
+import { z } from "zod";
+import { generateAvatarUrl, fetchProxyNodesFromUrl } from "./utils";
+import { generateVisualYaml } from "./yamlGenerator";
 import { Subscription, DbSchema } from "./types";
+import { fileURLToPath } from "url";
 import {
   authMiddleware,
   createSuccessResponse,
@@ -27,11 +28,14 @@ const __dirname = path.dirname(__filename);
 
 const subInputSchema = z.object({
   name: z.string().min(1),
+  description: z.string().optional(),
   enabled: z.boolean().default(true),
   totalTrafficBytes: z.union([z.number().int().positive(), z.null()]),
   startAt: z.union([z.string().datetime(), z.string()]),
   expireAt: z.union([z.string().datetime(), z.string()]),
-  yamlConfig: z.string().min(1)
+  yamlConfig: z.string().optional().default(""),
+  configMode: z.enum(["yaml", "visual"]).optional(),
+  visualConfig: z.any().optional()
 });
 
 export function createRouter(db: {
@@ -205,11 +209,14 @@ export function createRouter(db: {
       const newSub: Subscription = {
         id: uuid.v4(),
         name: parsed.data.name,
+        description: parsed.data.description,
         enabled: parsed.data.enabled,
         totalTrafficBytes: parsed.data.totalTrafficBytes,
         startAt: parsed.data.startAt,
         expireAt: parsed.data.expireAt,
         yamlConfig: parsed.data.yamlConfig,
+        configMode: parsed.data.configMode || 'yaml',
+        visualConfig: parsed.data.visualConfig,
         createAt: now,
         lastUpdatedAt: now
       };
@@ -289,6 +296,8 @@ export function createRouter(db: {
       const updatedSub: Subscription = {
         ...db.data.subscriptions[subIndex],
         ...parsed.data,
+        configMode: parsed.data.configMode || db.data.subscriptions[subIndex].configMode || 'yaml',
+        visualConfig: parsed.data.visualConfig,
         lastUpdatedAt: now
       };
 
@@ -344,6 +353,52 @@ export function createRouter(db: {
     );
   });
 
+  // 手动拉取节点
+  router.post("/api/subscription/:id/fetch-nodes", authMiddleware, async ctx => {
+    try {
+      const { id } = ctx.params;
+      const sub = db.data.subscriptions.find(s => s.id === id);
+      if (!sub) {
+        ctx.status = 404;
+        ctx.body = createErrorResponse("订阅不存在");
+        return;
+      }
+
+      if (sub.configMode !== 'visual' || !sub.visualConfig?.proxyProviders) {
+        ctx.status = 400;
+        ctx.body = createErrorResponse("该订阅不是可视化配置模式或没有配置节点来源");
+        return;
+      }
+
+      let fetchCount = 0;
+      for (const provider of sub.visualConfig.proxyProviders) {
+        if (provider.type === 'url' && provider.url) {
+          try {
+            const nodes = await fetchProxyNodesFromUrl(provider.url);
+            provider.fetchedNodes = nodes;
+            provider.lastFetchTime = dayjs().toISOString();
+            fetchCount++;
+          } catch (error: any) {
+            console.error(`Fetch failed for provider ${provider.name}: ${error.message}`);
+            // Keep existing nodes if fetch fails
+          }
+        }
+      }
+
+      if (fetchCount > 0) {
+        sub.lastUpdatedAt = dayjs().toISOString();
+        await db.write();
+        ctx.body = createSuccessResponse(sub, `成功更新了 ${fetchCount} 个订阅源的节点`);
+      } else {
+        ctx.body = createSuccessResponse(sub, "没有需要更新的订阅源或更新失败");
+      }
+    } catch (error) {
+      console.error("拉取节点错误:", error);
+      ctx.status = 500;
+      ctx.body = createErrorResponse("服务器内部错误");
+    }
+  });
+
   // 订阅接口（公开访问）
   // 订阅url格式：http://192.168.0.1:3001/subscribe?id=c730fb28-3ec0-4196-be40-d667a3e18464&t=176104878698
   router.get("/subscribe", async ctx => {
@@ -389,7 +444,7 @@ export function createRouter(db: {
 
       const filename = sub.name;
       const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const webPageUrl = "https://sub-proxy.bbchin.com:50000";
+      const webPageUrl = process.env.WEB_PAGE_URL;
 
       const headerComment = [
         `# Subscription Info Header`,
@@ -398,18 +453,20 @@ export function createRouter(db: {
         ` title: "${filename}"  # 标题`,
         ` website: "${webPageUrl}"  # 网站`,
         ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"  # 来源`,
-        ` description: "华炫之光自用代理，针对海外社媒做了单独定制。"  # 描述`,
+        ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"  # 描述`,
         ` upload: 0 # 已上传流量（字节）`,
         ` download: 0 # 已下载流量（字节）`,
         ` total: ${totalTraffic} # 总流量（字节）`,
-        ` support: ["clash", "clash verge", "shadowrockets"]  # 支持软件`,
+        ` support: ["clash", "openclash", "clash verge", "shadowrockets"]  # 支持软件`,
         ` remain_days: "${remainingDays}"  # 剩余天数`,
         ` expire_time: "${expireTime}"  # 到期时间`,
         ` last_update: "${updatedAt}"  # 上次更新时间`,
         ``
       ].join("\n");
 
-      const content = `${headerComment}\n\n${sub.yamlConfig}`;
+      const content = `${headerComment}\n\n${
+        sub.configMode === 'visual' ? generateVisualYaml(sub) : sub.yamlConfig
+      }`;
 
       // 设置响应头 - 根据环境变量设置不同的缓存策略
       const isDev = process.env.NODE_ENV === "development";
@@ -437,7 +494,7 @@ export function createRouter(db: {
         ctx.set("Content-Type", "application/octet-stream; charset=utf-8");
         ctx.set(
           "Content-Disposition",
-          `attachment; filename*=UTF-8''${encodeURIComponent(filename)}` // TODO:filename记笔记
+          `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`
         );
       }
 

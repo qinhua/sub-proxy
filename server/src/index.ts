@@ -1,18 +1,39 @@
+import path from "path";
 import Koa from "koa";
 import Router from "@koa/router";
 import bodyParser from "koa-bodyparser";
 import serve from "koa-static";
+// import cors from "koa-cors";
 import send from "koa-send";
-import cors from "koa-cors";
-import path from "path";
-import { fileURLToPath } from "url";
-import { createDb } from "./db";
 import { createRouter } from "./routes";
 import authRoutes from "./authRoutes";
+import { fileURLToPath } from "url";
+import { createDb } from "./db";
+import { startPeriodicFetch } from "./cron";
+import dotenv from "dotenv";
 
 // 在 ES 模块中，使用 import.meta.url 获取当前文件路径
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// 加载环境变量：优先加载对应环境的 .env 文件
+// 支持两种文件命名：.env.development / .env.production
+// 若未找到，则降级加载根目录 .env
+(() => {
+  const env = process.env.NODE_ENV || "development";
+  const tryPaths = [
+    path.resolve(process.cwd(), `.env.${env}`),
+    path.resolve(process.cwd(), ".env")
+  ];
+  for (const p of tryPaths) {
+    try {
+      dotenv.config({ path: p });
+      break;
+    } catch (e) {
+      // ignore
+    }
+  }
+})();
 
 async function main() {
   const app = new Koa();
@@ -34,6 +55,9 @@ async function main() {
   });
 
   const db = await createDb();
+
+  // Start periodic fetching of nodes
+  startPeriodicFetch(db);
 
   // 将数据库添加到上下文
   app.use(async (ctx, next) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Card,
   Button,
@@ -20,7 +20,7 @@ import {
   SecurityScanOutlined,
   InfoCircleOutlined
 } from "@ant-design/icons";
-import { api } from "../api";
+import { api, API_BASE_URL } from "../api";
 import { getSubscriptionBaseUrl } from "../utils/subscriptionUrl";
 
 export function Settings() {
@@ -123,7 +123,7 @@ export function Settings() {
                   <div className="flex justify-between items-center">
                     <Typography.Text>API 基础 URL：</Typography.Text>
                     <Typography.Text code>
-                      {window.location.origin}
+                      {API_BASE_URL}
                     </Typography.Text>
                   </div>
                   <div className="flex justify-between items-center">

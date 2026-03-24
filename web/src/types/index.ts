@@ -10,6 +10,7 @@ export interface ApiResponse<T = any> {
 export type Subscription = {
   id: string;
   name: string;
+  description?: string;
   enabled: boolean;
   totalTrafficBytes: number | null;
   startAt: string;
@@ -18,6 +19,24 @@ export type Subscription = {
   lastUpdatedAt: string;
   yamlConfig: string;
   pinnedOrder?: number; // 置顶顺序，越小越靠前，undefined 表示未置顶
+  configMode?: 'yaml' | 'visual';
+  visualConfig?: {
+    baseConfig?: string;
+    proxyProviders?: {
+      id: string;
+      name: string;
+      type: 'url' | 'content';
+      url?: string;
+      content?: string;
+      updateInterval?: number;
+    }[];
+    chainProxies?: {
+      id: string;
+      name: string; // The proxy group name
+      secondHopConfig?: string;
+    }[];
+    rules?: string;
+  };
 };
 
 export type Settings = { baseUrl: string };
