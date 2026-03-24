@@ -72,6 +72,7 @@ export interface Subscription {
   expireAt: string;
   createAt: string;
   lastUpdatedAt: string;
+  usedTrafficBytes?: number;
   yamlConfig: string;
   pinnedOrder?: number;
   configMode?: 'yaml' | 'visual';

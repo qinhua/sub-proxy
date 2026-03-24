@@ -26,6 +26,9 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 用 1000PB 代表无限流量
+const TB1000 = 1024 * 1024 * 1024 * 1024 * 1024 * 1000;
+
 const subInputSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -212,6 +215,7 @@ export function createRouter(db: {
         description: parsed.data.description,
         enabled: parsed.data.enabled,
         totalTrafficBytes: parsed.data.totalTrafficBytes,
+        usedTrafficBytes: 0,
         startAt: parsed.data.startAt,
         expireAt: parsed.data.expireAt,
         yamlConfig: parsed.data.yamlConfig,
@@ -296,6 +300,7 @@ export function createRouter(db: {
       const updatedSub: Subscription = {
         ...db.data.subscriptions[subIndex],
         ...parsed.data,
+        usedTrafficBytes: db.data.subscriptions[subIndex].usedTrafficBytes || 0,
         configMode: parsed.data.configMode || db.data.subscriptions[subIndex].configMode || 'yaml',
         visualConfig: parsed.data.visualConfig,
         lastUpdatedAt: now
@@ -424,7 +429,7 @@ export function createRouter(db: {
       const now = dayjs();
       let remainingDays = "永久有效";
       let expireTime = "永久有效";
-      let totalTraffic: number | string = `"${"无限制"}"`;
+      let totalTraffic: number | string = TB1000;
 
       if (!isForeverValid) {
         const startAt = dayjs(sub.startAt);
@@ -438,8 +443,15 @@ export function createRouter(db: {
         expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
       }
 
-      if (!isUnlimitTraffic) {
-        totalTraffic = sub.totalTrafficBytes || 0;
+      // 检查流量是否耗尽
+      const usedTraffic = sub.usedTrafficBytes || 0;
+      if (!isUnlimitTraffic && sub.totalTrafficBytes !== null) {
+        if (usedTraffic >= sub.totalTrafficBytes) {
+          ctx.status = 403;
+          ctx.body = createErrorResponse("流量已耗尽");
+          return;
+        }
+        totalTraffic = sub.totalTrafficBytes;
       }
 
       const filename = sub.name;
@@ -455,13 +467,12 @@ export function createRouter(db: {
         ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"  # 来源`,
         ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"  # 描述`,
         ` upload: 0 # 已上传流量（字节）`,
-        ` download: 0 # 已下载流量（字节）`,
+        ` download: ${usedTraffic} # 已下载流量（字节）`,
         ` total: ${totalTraffic} # 总流量（字节）`,
         ` support: ["clash", "openclash", "clash verge", "shadowrockets"]  # 支持软件`,
         ` remain_days: "${remainingDays}"  # 剩余天数`,
         ` expire_time: "${expireTime}"  # 到期时间`,
-        ` last_update: "${updatedAt}"  # 上次更新时间`,
-        ``
+        ` last_update: "${updatedAt}"  # 上次更新时间`
       ].join("\n");
 
       const content = `${headerComment}\n\n${
@@ -498,13 +509,12 @@ export function createRouter(db: {
         );
       }
 
-      // 设置订阅头部信息，TODO: 流量统计功能待实现
+      // 设置订阅头部信息
       if (!isForeverValid || !isUnlimitTraffic) {
         const expireAt = dayjs(sub.expireAt);
         const expireUnix = !isForeverValid ? expireAt.unix() : 0;
-        const totalTraffic = !isUnlimitTraffic ? sub.totalTrafficBytes : 0;
         const uploadBytes = 0;
-        const downloadBytes = 4815000000;
+        const downloadBytes = usedTraffic;
         ctx.set(
           "Subscription-Userinfo",
           `upload=${uploadBytes}; download=${downloadBytes}; total=${totalTraffic}; expire=${expireUnix}`
@@ -515,6 +525,18 @@ export function createRouter(db: {
       ctx.set("Profile-Http-Request-Timeout", "24"); // 更新间隔（小时）
 
       ctx.body = content;
+
+      // 记录流量（异步更新数据库）
+      try {
+        const contentLength = Buffer.byteLength(content, 'utf8');
+        sub.usedTrafficBytes = usedTraffic + contentLength;
+        sub.lastUpdatedAt = dayjs().toISOString();
+        db.write().catch(err => {
+          console.error("更新订阅流量失败:", err);
+        });
+      } catch (err) {
+        console.error("计算流量失败:", err);
+      }
     } catch (error) {
       console.error("订阅获取错误:", error);
       ctx.status = 500;

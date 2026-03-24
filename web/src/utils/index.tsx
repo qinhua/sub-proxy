@@ -19,3 +19,25 @@ export const LogoutSystem = () => {
   localStorage.removeItem("user");
   window.location.href = "/login";
 };
+
+// 格式化流量数值
+export const formatTrafficValue = (bytes: number) => {
+  const pb = bytes / (1024 * 1024 * 1024 * 1024 * 1024);
+  if (pb >= 1) {
+    return `${pb.toFixed(2)} PB`;
+  }
+  const tb = bytes / (1024 * 1024 * 1024 * 1024);
+  if (tb >= 1) {
+    return `${tb.toFixed(2)} TB`;
+  }
+  const gb = bytes / (1024 * 1024 * 1024);
+  if (gb >= 1) {
+    return `${gb.toFixed(2)} GB`;
+  }
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) {
+    return `${mb.toFixed(2)} MB`;
+  }
+  const kb = bytes / 1024;
+  return `${kb.toFixed(2)} KB`;
+};

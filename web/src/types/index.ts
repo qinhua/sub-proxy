@@ -13,6 +13,7 @@ export type Subscription = {
   description?: string;
   enabled: boolean;
   totalTrafficBytes: number | null;
+  usedTrafficBytes?: number;
   startAt: string;
   expireAt: string;
   createAt: string;

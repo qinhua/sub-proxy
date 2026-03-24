@@ -199,7 +199,7 @@ function MainLayout() {
         {/* 左侧菜单 - 固定高度 */}
         <div
           style={{
-            width: collapsed ? 70 : 250,
+            width: collapsed ? 60 : 250,
             background: "#fff",
             boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
             height: "100%",

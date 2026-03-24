@@ -61,10 +61,9 @@ dns:
       - 0.0.0.0/32
     domain:
       - geosite:geolocation-!cn
-
 # ================= 代理组基础设置 =================
 proxy-groups:
-  - name: "🌍 国外通用"
+  - name: "🌏 国外通用"
     type: select
     proxies:
       - "🚀 自动优选加速"
@@ -80,8 +79,8 @@ const DEFAULT_RULES = `# 1. 需要固定美国 IP 的场景
 - DOMAIN-KEYWORD,chatgpt,🇺🇸 美国固定 IP (链式)
 # 2. 国内流量直连
 - GEOIP,CN,🎯 国内直连
-# 3. 其余国外流量走自动优选 (速度最快)
-- MATCH,🌍 国外流量自动选`;
+# 3. 其余国外流量走自动优选
+- MATCH,🌏 国外通用`;
 
 export function SubscriptionForm() {
   const navigate = useNavigate();

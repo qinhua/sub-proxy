@@ -34,13 +34,13 @@ import {
   StarOutlined,
   ReloadOutlined
 } from "@ant-design/icons";
-import { api } from "../api";
 import { buildSubscriptionUrl } from "../utils/subscriptionUrl";
 import StateCard from "../components/StateCard";
-
-import type { Subscription } from "../types";
 import { useNavigate } from "react-router-dom";
+import { formatTrafficValue } from "../utils";
+import type { Subscription } from "../types";
 import { debounce } from "lodash-es";
+import { api } from "../api";
 import dayjs from "dayjs";
 import {
   SubscriptionStatus,
@@ -136,22 +136,36 @@ export function SubscriptionList() {
   }, [stats, subs]);
 
   // 格式化流量显示
-  const formatTraffic = (bytes: number | null) => {
-    if (bytes === null) {
+  const formatTraffic = (totalBytes: number | null, usedBytes: number | undefined) => {
+    const usedStr = formatTrafficValue(usedBytes || 0);
+
+    if (totalBytes === null) {
       return (
-        <Space size={4}>
-          <GlobalOutlined style={{ color: "#52c41a" }} />
-          <span style={{ color: "#52c41a", fontWeight: 500 }}>无限流量</span>
+        <Space direction="vertical" size={0}>
+          <Space size={4}>
+            <GlobalOutlined style={{ color: "#52c41a" }} />
+            <span style={{ color: "#52c41a", fontWeight: 500 }}>无限流量</span>
+          </Space>
+          <Typography.Text type="secondary" style={{ fontSize: "12px" }}>
+            已用: {usedStr}
+          </Typography.Text>
         </Space>
       );
     }
 
-    const gb = bytes / (1024 * 1024 * 1024);
-    if (gb >= 1) {
-      return `${gb.toFixed(1)} GB`;
-    }
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
+    const totalStr = formatTrafficValue(totalBytes);
+    const percent = Math.min(100, Math.round(((usedBytes || 0) / totalBytes) * 100));
+
+    return (
+      <Space direction="vertical" size={0} style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <span style={{ fontWeight: 500 }}>{totalStr}</span>
+        </div>
+        <div style={{ fontSize: '12px', color: percent > 90 ? percent >= 100 ? '#ff4d4f' : '#faad14' : '#8c8c8c' }}>
+          {percent >= 100 ? "已耗尽 " : `已用: ${usedStr} (${percent}%)`}
+        </div>
+      </Space>
+    );
   };
 
   // 格式化有效期显示
@@ -174,7 +188,7 @@ export function SubscriptionList() {
     const isExpiringSoon = expireTime.diff(now, "day") <= 7;
 
     return (
-      <Space direction="vertical" size={0}>
+      <Space direction="vertical" size={0} style={{ gap: 4 }}>
         <div>
           <ClockCircleOutlined
             style={{
@@ -199,8 +213,8 @@ export function SubscriptionList() {
             {isExpired ? "已过期" : isExpiringSoon ? "即将过期" : "限时有效"}
           </span>
         </div>
-        <Typography.Text type="secondary" style={{ fontSize: "12px" }}>
-          {startTime.format("YYYY-MM-DD")} ~ {expireTime.format("YYYY-MM-DD")}
+        <Typography.Text type="secondary" style={{ display: 'inline-block', fontSize: "12px", whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+          {`${startTime.format("YYYY-MM-DD HH:mm")}\n${expireTime.format("YYYY-MM-DD HH:mm")}`}
         </Typography.Text>
       </Space>
     );
@@ -481,11 +495,11 @@ export function SubscriptionList() {
               )
             },
             {
-              title: "总流量",
+              title: "流量统计",
               dataIndex: "totalTrafficBytes",
               width: 150,
               align: "center",
-              render: (_, record) => formatTraffic(record.totalTrafficBytes)
+              render: (_, record) => formatTraffic(record.totalTrafficBytes, record.usedTrafficBytes)
             },
             {
               title: "有效期",
