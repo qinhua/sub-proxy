@@ -5,7 +5,7 @@
    </a>
 </div>
 <h1 align="center">SubProxy</h1>
-<p align="center">一个基于 Koa + React 的现代订阅代理管理系统，支持 Docker 部署和数据持久化。可用于个人或团队使用，统一管理和分享订阅代理。</p>
+<p align="center">一个基于 Koa + React 的现代代理配置管理系统，支持 Docker 部署和数据持久化。可用于个人或团队使用，统一管理和分享代理配置。</p>
 <p class="badge-row" align="center">
   <a href="https://react.docschina.org" target="_blank">
     <img src="https://img.shields.io/badge/react-18.3.1-cyan?logo=react" alt="React"/>
@@ -31,6 +31,9 @@
 ### 🎯 核心功能
 
 - **订阅管理**：创建、编辑、删除、启用/禁用订阅
+- **可视化配置**：支持分离配置基础设置、机场节点（支持多源聚合）、链式代理和分流规则，系统自动生成完美的 YAML
+- **链式代理支持**：支持 `dialer-proxy`，完美兼容最新版 Mihomo/Clash Meta 内核，实现“多节点自动测速选优 + 特定流量强制走固定静态住宅 IP”的高阶玩法
+- **节点自动更新**：支持定期拉取或手动一键同步最新的机场订阅节点
 - **置顶功能**：支持最多3个订阅置顶，固定显示在列表顶部
 - **搜索筛选**：按名称、状态、流量类型、有效期筛选，支持实时搜索
 - **数据统计**：实时显示订阅统计信息，包括总数、启用数、无限流量数等
@@ -228,6 +231,15 @@ docker-compose up -d
 
 ## 🔧 配置说明
 
+### 环境变量配置
+
+支持通过根目录的 `.env` / `.env.production` 进行环境配置：
+
+```env
+# 订阅头部展示的来源页面地址
+WEB_PAGE_URL=https://sub-proxy.yourdomain.com
+```
+
 ### 数据持久化
 
 | Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
@@ -398,7 +410,8 @@ docker logs <容器名称>
 ### TODO
 
 - [ ] 支持订阅转换功能
-- [ ] 支持外挂第三方订阅
+- [ ] 支持流量统计和有效期控制
+- [ ] 支持过滤订阅节点中的部分节点
 - [ ] 支持配置文件正确性检测
 
 ## 📞 支持
