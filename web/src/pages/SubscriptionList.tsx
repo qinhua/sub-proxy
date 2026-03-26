@@ -577,7 +577,7 @@ function RowActions({
   onTogglePin: (id: string) => void;
 }) {
   return (
-    <Space direction="vertical" size={0}>
+    <Space direction="vertical" size={0} style={{ alignItems: "flex-end" }}>
       <Space size={4}>
         <Tooltip
           title={pinnedIds.includes(sub.id) ? "取消置顶" : "置顶（最多3个）"}
@@ -623,7 +623,7 @@ function RowActions({
             👁️
           </Button>
         </Tooltip>
-        <Tooltip title="编辑订阅">
+        <Tooltip title="编辑">
           <Button
             type="text"
             style={{ width: 36 }}
@@ -631,7 +631,7 @@ function RowActions({
             onClick={onEdit}
           />
         </Tooltip>
-        <Tooltip title={sub.enabled ? "禁用订阅" : "启用订阅"}>
+        <Tooltip title={sub.enabled ? "禁用" : "启用"}>
           <Button
             type="text"
             style={{ width: 36 }}
