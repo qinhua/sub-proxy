@@ -63,6 +63,144 @@ export function createRouter(db: {
     }
   });
 
+  // 获取订阅 YAML 预览（用于管理端预览，不进行过期/流量阻断）
+  router.get("/api/subscription/:id/preview-yaml", authMiddleware, async ctx => {
+    try {
+      const { id } = ctx.params as { id: string };
+      const sub = db.data.subscriptions.find(s => s.id === id);
+      if (!sub) {
+        ctx.status = 404;
+        ctx.body = createErrorResponse("订阅不存在");
+        return;
+      }
+
+      const isForeverValid = !sub.expireAt;
+      const now = dayjs();
+      let remainingDays = "永久有效";
+      let expireTime = "永久有效";
+      let totalTraffic: number | string = TB1000;
+
+      if (!isForeverValid) {
+        const expireAt = dayjs(sub.expireAt);
+        remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
+        expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
+      }
+
+      const usedTraffic = sub.usedTrafficBytes || 0;
+      if (sub.totalTrafficBytes !== null) {
+        totalTraffic = sub.totalTrafficBytes || 0;
+      }
+
+      const filename = sub.name;
+      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
+      const webPageUrl = process.env.WEB_PAGE_URL;
+
+      const headerComment = [
+        `# Subscription Info Header`,
+        `info:`,
+        ` id: "${id}"`,
+        ` title: "${filename}"`,
+        ` website: "${webPageUrl}"`,
+        ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"`,
+        ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"`,
+        ` upload: 0`,
+        ` download: ${usedTraffic}`,
+        ` total: ${totalTraffic}`,
+        ` support: ["clash", "openclash", "clash verge", "shadowrockets"]`,
+        ` remain_days: "${remainingDays}"`,
+        ` expire_time: "${expireTime}"`,
+        ` last_update: "${updatedAt}"`
+      ].join("\n");
+
+      const content = `${headerComment}\n\n${
+        sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
+      }`;
+
+      ctx.set("Content-Type", "text/yaml; charset=utf-8");
+      ctx.body = content;
+    } catch (error) {
+      console.error("订阅 YAML 预览错误:", error);
+      ctx.status = 500;
+      ctx.body = createErrorResponse("服务器内部错误");
+    }
+  });
+
+  // 预览生成完整配置（不改变数据库、不校验过期/流量）
+  router.post("/api/subscription/preview", authMiddleware, async ctx => {
+    try {
+      const incoming = ctx.request.body as Partial<Subscription>;
+      if (!incoming || !incoming.name) {
+        ctx.status = 400;
+        ctx.body = createErrorResponse("参数缺失：name");
+        return;
+      }
+      const sub: Subscription = {
+        id: incoming.id || "preview",
+        name: incoming.name,
+        description: incoming.description || "",
+        enabled: incoming.enabled ?? true,
+        totalTrafficBytes: incoming.totalTrafficBytes ?? null,
+        usedTrafficBytes: incoming.usedTrafficBytes ?? 0,
+        startAt: incoming.startAt || "",
+        expireAt: incoming.expireAt || "",
+        yamlConfig: incoming.yamlConfig || "",
+        configMode: incoming.configMode || "yaml",
+        visualConfig: incoming.visualConfig,
+        createAt: incoming.createAt || dayjs().toISOString(),
+        lastUpdatedAt: dayjs().toISOString()
+      };
+
+      const isForeverValid = !sub.expireAt;
+      const isUnlimitTraffic = sub.totalTrafficBytes === null;
+
+      const now = dayjs();
+      let remainingDays = "永久有效";
+      let expireTime = "永久有效";
+      let totalTraffic: number | string = TB1000;
+
+      if (!isForeverValid) {
+        const expireAt = dayjs(sub.expireAt);
+        remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
+        expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
+      }
+
+      if (!isUnlimitTraffic && sub.totalTrafficBytes !== null) {
+        totalTraffic = sub.totalTrafficBytes;
+      }
+
+      const filename = sub.name;
+      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
+      const webPageUrl = process.env.WEB_PAGE_URL;
+
+      const headerComment = [
+        `# Subscription Info Header`,
+        `info:`,
+        ` id: "${sub.id}"`,
+        ` title: "${filename}"`,
+        ` website: "${webPageUrl}"`,
+        ` source: "${ctx.request.protocol}://${ctx.request.host}/api/subscription/preview"`,
+        ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"`,
+        ` upload: 0`,
+        ` download: ${sub.usedTrafficBytes || 0}`,
+        ` total: ${totalTraffic}`,
+        ` support: ["clash", "openclash", "clash verge", "shadowrockets"]`,
+        ` remain_days: "${remainingDays}"`,
+        ` expire_time: "${expireTime}"`,
+        ` last_update: "${updatedAt}"`
+      ].join("\n");
+
+      const content = `${headerComment}\n\n${
+        sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
+      }`;
+
+      ctx.body = createSuccessResponse({ content }, "预览生成成功");
+    } catch (error) {
+      console.error("预览生成错误:", error);
+      ctx.status = 500;
+      ctx.body = createErrorResponse("服务器内部错误");
+    }
+  });
+
   const upload = multer({
     storage: storage,
     limits: {

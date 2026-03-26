@@ -66,5 +66,8 @@ export function buildSubscriptionUrl(
 ): string {
   const baseUrl = getSubscriptionBaseUrl();
   const url = `${baseUrl.replace(/\/$/, "")}/subscribe?id=${subId}`;
-  return returnYaml ? `${url}&yaml=1` : withTs ? `${url}&t=${Date.now()}` : url;
+  if (returnYaml) {
+    return withTs ? `${url}&yaml=1&t=${Date.now()}` : `${url}&yaml=1`;
+  }
+  return withTs ? `${url}&t=${Date.now()}` : url;
 }

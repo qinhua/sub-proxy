@@ -88,6 +88,16 @@ export interface Subscription {
       fetchedNodes?: any[];
       lastFetchTime?: string;
     }[];
+    ruleProviders?: {
+      id?: string;
+      name: string;
+      type: 'http';
+      url: string;
+      isPreset?: boolean;
+      behavior: 'domain' | 'classical' | 'ipcidr';
+      interval?: number;
+      path?: string;
+    }[];
     chainProxies?: {
       id: string;
       name: string; // The proxy group name

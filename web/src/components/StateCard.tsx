@@ -25,9 +25,9 @@ const StateCard = ({ title, subTitle, value, bgColor, icon }: { title: string; s
                         fontWeight: "bold"
                     }}
                 />
-                <div className="mt-2 text-sm text-white opacity-800">{subTitle}</div>
+                <div className="mt-2 text-xs text-white opacity-800">{subTitle}</div>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
                 {icon}
             </div>
         </div>

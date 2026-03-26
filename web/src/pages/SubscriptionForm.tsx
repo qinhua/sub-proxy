@@ -14,73 +14,16 @@ import {
   Col,
   Radio,
   Select,
-  Divider,
-  Popconfirm
+  Modal,
+  Tag
 } from "antd";
 import { ArrowLeftOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
-import dayjs from "dayjs";
-import { api } from "../api";
+import { DEFAULT_BASE_CONFIG, DEFAULT_RULES, RULE_PRESETS } from "../constants";
 import { v4 as uuidv4 } from "uuid";
-
-const DEFAULT_BASE_CONFIG = `# ================= 基础设置 =================
-port: 7890
-socks-port: 7891
-redir-port: 7892
-tproxy-port: 7893
-bind-address: "*"
-allow-lan: true
-mode: rule
-log-level: info
-external-controller: 0.0.0.0:9090
-dns:
-  enable: true
-  ipv6: false
-  use-hosts: true
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
-  default-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
-  nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
-  fallback:
-    - https://doh.dns.sb/dns-query
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.twnic.tw/dns-query
-  fallback-filter:
-    geoip: true
-    geoip-code: CN
-    ipcidr:
-      - 240.0.0.0/4
-      - 127.0.0.1/32
-      - 0.0.0.0/32
-    domain:
-      - geosite:geolocation-!cn
-# ================= 代理组基础设置 =================
-proxy-groups:
-  - name: "🌏 国外通用"
-    type: select
-    proxies:
-      - "🚀 自动优选加速"
-      - DIRECT
-  - name: "🎯 国内直连"
-    type: select
-    proxies:
-      - DIRECT
-      - "🚀 自动优选加速"`;
-
-const DEFAULT_RULES = `# 1. 需要固定美国 IP 的场景
-- DOMAIN-SUFFIX,openai.com,🇺🇸 美国固定 IP (链式)
-- DOMAIN-KEYWORD,chatgpt,🇺🇸 美国固定 IP (链式)
-# 2. 国内流量直连
-- GEOIP,CN,🎯 国内直连
-# 3. 其余国外流量走自动优选
-- MATCH,🌏 国外通用`;
+import { api } from "../api";
+import dayjs from "dayjs";
 
 export function SubscriptionForm() {
   const navigate = useNavigate();
@@ -89,13 +32,15 @@ export function SubscriptionForm() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [yaml, setYaml] = useState(
-    "# 在此粘贴Clash配置\nproxies: []\nproxy-groups: []\nrules: []"
+    "# 在此粘贴Clash配置，以下是示例结构：\nproxies: []\nproxy-groups: []\nrules: []"
   );
   const [configMode, setConfigMode] = useState<'yaml' | 'visual'>('yaml');
+  const [selectedRulePreset, setSelectedRulePreset] = useState<string>('');
 
   // Visual Config states
   const [baseConfig, setBaseConfig] = useState(DEFAULT_BASE_CONFIG);
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
+  const ruleProvidersWatch = Form.useWatch('ruleProviders', form) || [];
 
   // 控制流量和有效期开关的状态
   const [unlimitedTraffic, setUnlimitedTraffic] = useState(true);
@@ -131,7 +76,8 @@ export function SubscriptionForm() {
             : undefined,
           period: startTime && expireTime ? [startTime, expireTime] : undefined,
           proxyProviders: target.visualConfig?.proxyProviders || [],
-          chainProxies: target.visualConfig?.chainProxies || []
+          chainProxies: target.visualConfig?.chainProxies || [],
+          ruleProviders: target.visualConfig?.ruleProviders || []
         });
         setConfigMode(target.configMode || 'yaml');
         setYaml(target.yamlConfig || "");
@@ -144,12 +90,33 @@ export function SubscriptionForm() {
       // Default lists for create
       form.setFieldsValue({
         proxyProviders: [],
-        chainProxies: []
+        chainProxies: [],
+        ruleProviders: []
       });
     }
   }, []);
 
-  async function onFinish(values: any) {
+  const handleAppendToRulesConfig = (rulesetName: string, targetGroup = "🌏 国外通用") => {
+    const name = (rulesetName || "").trim();
+    if (!name) {
+      message.warning("请先填写规则集名称");
+      return;
+    }
+    const line = `- RULE-SET,${name},${targetGroup}`;
+    setRulesConfig(prev => {
+      const current = prev || "";
+      const exists = current.split("\n").some(l => l.trim() === line.trim());
+      if (exists) {
+        message.info("该规则引用已存在");
+        return current;
+      }
+      const sep = current.endsWith("\n") ? "" : "\n";
+      return current + sep + line + "\n";
+    });
+    message.success("已在分流规则中引用该规则集");
+  };
+
+  const onFinish = async (values: any) => {
     setLoading(true);
     try {
       let startAt, expireAt;
@@ -177,6 +144,7 @@ export function SubscriptionForm() {
           baseConfig: baseConfig,
           rules: rulesConfig,
           proxyProviders: values.proxyProviders || [],
+          ruleProviders: values.ruleProviders || [],
           chainProxies: values.chainProxies || []
         }
       };
@@ -432,110 +400,116 @@ export function SubscriptionForm() {
                 <Form.List name="proxyProviders">
                   {(fields, { add, remove }) => (
                     <>
-                      {fields.map((field, index) => (
-                        <Card size="small" className="mb-4" key={field.key}>
-                          <div className="flex justify-between items-center mb-2">
-                            <Typography.Text strong>节点配置 {index + 1}</Typography.Text>
-                            <Button danger type="text" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)}>
-                              移除
-                            </Button>
-                          </div>
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item
-                                {...field}
-                                name={[field.name, 'name']}
-                                label="名称"
-                                rules={[{ required: true, message: '请输入名称' }]}
-                              >
-                                <Input placeholder="如：XX机场" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item
-                                {...field}
-                                name={[field.name, 'type']}
-                                label="来源类型"
-                                rules={[{ required: true }]}
-                                initialValue="url"
-                              >
-                                <Select>
-                                  <Select.Option value="url">订阅链接</Select.Option>
-                                  <Select.Option value="content">直接填入节点(YAML)</Select.Option>
-                                </Select>
-                              </Form.Item>
-                            </Col>
-                          </Row>
+                      {fields.map((field, index) => {
+                        const { key: _k, ...restField } = field;
+                        return (
+                          <Card size="small" className="mb-4" key={field.key}>
+                            <div className="flex justify-between items-center mb-2">
+                              <Typography.Text strong>节点配置 {index + 1}</Typography.Text>
+                              <Button
+                                size="small"
+                                danger type="text" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)}>
+                                移除
+                              </Button>
+                            </div>
+                            <Row gutter={16}>
+                              <Col span={12}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, 'name']}
+                                  label="名称"
+                                  rules={[{ required: true, message: '请输入名称' }]}
+                                >
+                                  <Input placeholder="如：XX机场" />
+                                </Form.Item>
+                              </Col>
+                              <Col span={12}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, 'type']}
+                                  label="来源类型"
+                                  rules={[{ required: true }]}
+                                  initialValue="url"
+                                >
+                                  <Select>
+                                    <Select.Option value="url">订阅链接</Select.Option>
+                                    <Select.Option value="content">直接填入节点(YAML)</Select.Option>
+                                  </Select>
+                                </Form.Item>
+                              </Col>
+                            </Row>
 
-                          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.proxyProviders?.[field.name]?.type !== curr.proxyProviders?.[field.name]?.type}>
-                            {() => {
-                              const type = form.getFieldValue(['proxyProviders', field.name, 'type']);
-                              if (type === 'url') {
-                                return (
-                                  <>
-                                    <Row gutter={16}>
-                                      <Col span={16}>
-                                        <Form.Item
-                                          {...field}
-                                          name={[field.name, 'url']}
-                                          label="订阅链接"
-                                          rules={[{ required: true, message: '请输入订阅链接' }]}
-                                        >
-                                          <Input placeholder="http://" />
-                                        </Form.Item>
-                                      </Col>
-                                      <Col span={8}>
-                                        <Form.Item
-                                          {...field}
-                                          name={[field.name, 'updateInterval']}
-                                          label="更新间隔(小时)"
-                                          initialValue={24}
-                                        >
-                                          <InputNumber min={1} className="w-full" />
-                                        </Form.Item>
-                                      </Col>
-                                    </Row>
-                                    {isEdit && (
-                                      <div className="mb-4">
-                                        <Button
-                                          size="small"
-                                          onClick={async () => {
-                                            try {
-                                              await onFinish(form.getFieldsValue());
-                                              await api.fetchNodes(params.id as string);
-                                              message.success("拉取成功");
-                                            } catch (e: any) {
-                                              message.error(e.response?.data?.message || "拉取失败");
-                                            }
-                                          }}
-                                        >
-                                          保存并拉取节点
-                                        </Button>
-                                        <Typography.Text type="secondary" className="ml-2 text-xs">
-                                          (将自动保存当前配置并拉取节点)
-                                        </Typography.Text>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              } else {
-                                return (
-                                  <Form.Item
-                                    {...field}
-                                    name={[field.name, 'content']}
-                                    label="节点列表 (YAML)"
-                                    rules={[{ required: true, message: '请输入节点内容' }]}
-                                  >
-                                    <Input.TextArea rows={6} placeholder={`- name: "Node 1"\n  type: ss\n  server: ...`} />
-                                  </Form.Item>
-                                );
-                              }
-                            }}
-                          </Form.Item>
-                        </Card>
-                      ))}
+                            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.proxyProviders?.[field.name]?.type !== curr.proxyProviders?.[field.name]?.type}>
+                              {() => {
+                                const type = form.getFieldValue(['proxyProviders', field.name, 'type']);
+                                if (type === 'url') {
+                                  return (
+                                    <>
+                                      <Row gutter={16}>
+                                        <Col span={16}>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[field.name, 'url']}
+                                            label="订阅链接"
+                                            rules={[{ required: true, message: '请输入订阅链接' }]}
+                                          >
+                                            <Input placeholder="http://" />
+                                          </Form.Item>
+                                        </Col>
+                                        <Col span={8}>
+                                          <Form.Item
+                                            {...restField}
+                                            name={[field.name, 'updateInterval']}
+                                            label="更新间隔(小时)"
+                                            initialValue={24}
+                                          >
+                                            <InputNumber min={1} className="w-full" />
+                                          </Form.Item>
+                                        </Col>
+                                      </Row>
+                                      {isEdit && (
+                                        <div className="mb-4">
+                                          <Button
+                                            size="small"
+                                            type="primary"
+                                            onClick={async () => {
+                                              try {
+                                                await onFinish(form.getFieldsValue());
+                                                await api.fetchNodes(params.id as string);
+                                                message.success("拉取成功");
+                                              } catch (e: any) {
+                                                message.error(e.response?.data?.message || "拉取失败");
+                                              }
+                                            }}
+                                          >
+                                            保存并拉取节点
+                                          </Button>
+                                          <Typography.Text type="secondary" className="ml-2 text-xs">
+                                            (将自动保存当前配置并拉取节点)
+                                          </Typography.Text>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                } else {
+                                  return (
+                                    <Form.Item
+                                      {...restField}
+                                      name={[field.name, 'content']}
+                                      label="节点列表 (YAML)"
+                                      rules={[{ required: true, message: '请输入节点内容' }]}
+                                    >
+                                      <Input.TextArea rows={6} placeholder={`- name: "Node 1"\n  type: ss\n  server: ...`} />
+                                    </Form.Item>
+                                  );
+                                }
+                              }}
+                            </Form.Item>
+                          </Card>
+                        );
+                      })}
                       <Button type="dashed" onClick={() => add({ id: uuidv4(), type: 'url' })} block icon={<PlusOutlined />}>
-                        添加机场订阅
+                        添加
                       </Button>
                     </>
                   )}
@@ -549,36 +523,174 @@ export function SubscriptionForm() {
                 <Form.List name="chainProxies">
                   {(fields, { add, remove }) => (
                     <>
-                      {fields.map((field, index) => (
-                        <Card size="small" className="mb-4" key={field.key}>
-                          <div className="flex justify-between items-center mb-2">
-                            <Typography.Text strong>链式代理节点 {index + 1}</Typography.Text>
-                            <Button danger type="text" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)}>
-                              移除
-                            </Button>
-                          </div>
-                          <Form.Item
-                            {...field}
-                            name={[field.name, 'name']}
-                            label="代理组名称 (Proxy Group Name)"
-                            rules={[{ required: true, message: '请输入代理组名称' }]}
-                            tooltip="将在规则中引用的名称，如：🐳 国外社媒。建议与下方节点配置中的 name 字段不同。"
-                          >
-                            <Input placeholder="🐳 国外社媒" />
-                          </Form.Item>
-                          <Form.Item
-                            {...field}
-                            name={[field.name, 'secondHopConfig']}
-                            label="第二跳节点配置 (YAML)"
-                            rules={[{ required: true, message: '请输入节点配置' }]}
-                            tooltip="只需填写单个节点的YAML配置，不需要写数组短横线。注意：必须包含 'name:' 字段，用于在代理组中显示。"
-                          >
-                            <Input.TextArea rows={6} placeholder={`name: "🇺🇸 洛杉矶住宅 IP"\ntype: socks5\nserver: 1.2.3.4\nport: 1080...`} />
-                          </Form.Item>
-                        </Card>
-                      ))}
+                      {fields.map((field, index) => {
+                        const { key: _k, ...restField } = field;
+                        return (
+                          <Card size="small" className="mb-4" key={field.key}>
+                            <div className="flex justify-between items-center mb-2">
+                              <Typography.Text strong>链式代理节点 {index + 1}</Typography.Text>
+                              <Button
+                                size="small"
+                                danger type="text" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)}>
+                                移除
+                              </Button>
+                            </div>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'name']}
+                              label="代理组名称 (Proxy Group Name)"
+                              rules={[{ required: true, message: '请输入代理组名称' }]}
+                              tooltip="将在规则中引用的名称，如：🐳 国外社媒。建议与下方节点配置中的 name 字段不同。"
+                            >
+                              <Input placeholder="如：🐳 国外社媒" />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'secondHopConfig']}
+                              label="第二跳节点配置 (YAML)"
+                              rules={[{ required: true, message: '请输入节点配置' }]}
+                              tooltip="只需填写单个节点的YAML配置，不需要写数组短横线。注意：必须包含 'name:' 字段，用于在代理组中显示。"
+                            >
+                              <Input.TextArea rows={6} placeholder={`格式如下：\nname: "🇺🇸 洛杉矶住宅 IP"\ntype: socks5\nserver: 1.2.3.4\nport: 1080...`} />
+                            </Form.Item>
+                          </Card>
+                        );
+                      })}
                       <Button type="dashed" onClick={() => add({ id: uuidv4() })} block icon={<PlusOutlined />}>
-                        添加链式代理
+                        添加
+                      </Button>
+                    </>
+                  )}
+                </Form.List>
+              </Card>
+
+              <Card size="small" title="第三方分流规则 (Rule Providers)" className="mb-6">
+                <Typography.Paragraph type="secondary">
+                  可引入成熟的第三方分流规则（RULE-SET），如 ACL4SSR 等，添加后可在下方 “分流规则” 编辑器中使用：<br />- RULE-SET,[规则名称],[目标策略组]。
+                </Typography.Paragraph>
+                <Row gutter={12} style={{ marginBottom: 12 }}>
+                  <Col span={12}>
+                    <Select
+                      value={selectedRulePreset}
+                      onChange={setSelectedRulePreset}
+                      className="w-full"
+                      placeholder="选择预设规则集"
+                      options={RULE_PRESETS.map(p => ({ value: p.name, label: p.name }))}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Space>
+                      <Button
+                        type="primary"
+                        onClick={() => {
+                          const preset = RULE_PRESETS.find(p => p.name === selectedRulePreset);
+                          if (!preset) return;
+                          const list = form.getFieldValue('ruleProviders') || [];
+                          form.setFieldsValue({
+                            ruleProviders: [
+                              ...list,
+                              {
+                                id: uuidv4(),
+                                name: preset.name,
+                                url: preset.url,
+                                isPreset: true,
+                                behavior: preset.behavior,
+                                interval: preset.interval
+                              }
+                            ]
+                          });
+                          message.success("已添加预设规则集");
+                        }}
+                        disabled={!selectedRulePreset}
+                        icon={<PlusOutlined />}
+                      >
+                        添加预设
+                      </Button>
+                    </Space>
+                  </Col>
+                </Row>
+                <Form.List name="ruleProviders">
+                  {(fields, { add, remove }) => (
+                    <>
+                      {fields.map((field, index) => {
+                        const { key: _k, ...restField } = field;
+                        return (
+                          <Card size="small" className="mb-4" key={field.key}>
+                            <div className="flex justify-between items-center mb-2">
+                              <Space style={{ gap: 4 }}>
+                                <Typography.Text strong>规则集 {index + 1}</Typography.Text>
+                                {form.getFieldValue('ruleProviders')[index]?.isPreset ? <Tag color="green">预设</Tag> : null}
+                              </Space>
+
+                              <Space style={{ gap: 4 }}>
+                                <Button
+                                  type="primary"
+                                  size="small"
+                                  onClick={() => handleAppendToRulesConfig(ruleProvidersWatch?.[index]?.name)}
+                                  disabled={!ruleProvidersWatch?.[index]?.name}
+                                >
+                                  引用到分流规则
+                                </Button>
+                                <Button
+                                  size="small"
+                                  danger type="text" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)}>
+                                  移除
+                                </Button>
+                              </Space>
+                            </div>
+                            <Row gutter={16}>
+                              <Col span={8}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, 'name']}
+                                  label="名称"
+                                  rules={[{ required: true, message: '请输入名称' }]}
+                                >
+                                  <Input placeholder="如：ACL4SSR_Proxy" />
+                                </Form.Item>
+                              </Col>
+                              <Col span={10}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, 'url']}
+                                  label="订阅地址"
+                                  rules={[{ required: true, message: '请输入规则集地址' }]}
+                                >
+                                  <Input placeholder="https://..." />
+                                </Form.Item>
+                              </Col>
+                              <Col span={6}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, 'behavior']}
+                                  label="类型"
+                                  initialValue="domain"
+                                >
+                                  <Select>
+                                    <Select.Option value="domain">domain</Select.Option>
+                                    <Select.Option value="classical">classical</Select.Option>
+                                    <Select.Option value="ipcidr">ipcidr</Select.Option>
+                                  </Select>
+                                </Form.Item>
+                              </Col>
+                            </Row>
+                            <Row gutter={16}>
+                              <Col span={8}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, 'interval']}
+                                  label="更新间隔(秒)"
+                                  initialValue={86400}
+                                >
+                                  <InputNumber min={3600} className="w-full" />
+                                </Form.Item>
+                              </Col>
+                            </Row>
+                          </Card>
+                        );
+                      })}
+                      <Button type="dashed" onClick={() => add({ id: uuidv4(), behavior: 'domain' })} block icon={<PlusOutlined />}>
+                        添加自定义规则集
                       </Button>
                     </>
                   )}
@@ -603,6 +715,56 @@ export function SubscriptionForm() {
           {/* 操作按钮 */}
           {/* <Card className="fixed bottom-0 left-0 right-0 rounded-none"> */}
           <div className="flex justify-end space-x-4">
+            <Button
+              size="large"
+              onClick={async () => {
+                try {
+                  const values = form.getFieldsValue();
+                  const [startAt, expireAt] = values.period || [];
+                  const payload = {
+                    name: values.name,
+                    description: values.description,
+                    enabled: values.enabled ?? true,
+                    totalTrafficBytes: (values.totalTrafficBytes ?? null) ?? null,
+                    startAt: startAt?.toISOString?.() || "",
+                    expireAt: expireAt?.toISOString?.() || "",
+                    yamlConfig: yaml,
+                    configMode: configMode,
+                    visualConfig: {
+                      baseConfig,
+                      rules: rulesConfig,
+                      proxyProviders: values.proxyProviders || [],
+                      ruleProviders: values.ruleProviders || [],
+                      chainProxies: values.chainProxies || []
+                    }
+                  };
+                  const resp = await api.previewSub(payload);
+                  const content = resp.data?.content || "";
+                  Modal.info({
+                    title: "完整配置预览",
+                    width: 900,
+                    closable: true,
+                    maskClosable: true,
+                    okText: "关闭",
+                    content: (
+                      <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+                        <Editor
+                          height="600px"
+                          theme="vs-dark"
+                          defaultLanguage="yaml"
+                          value={content}
+                          options={{ readOnly: true, minimap: { enabled: false } }}
+                        />
+                      </div>
+                    )
+                  });
+                } catch (e: any) {
+                  message.error(e.message || "预览失败");
+                }
+              }}
+            >
+              预览完整配置
+            </Button>
             <Button size="large" onClick={() => navigate("/")}>
               取消
             </Button>

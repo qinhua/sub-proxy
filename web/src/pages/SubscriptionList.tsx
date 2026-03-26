@@ -39,6 +39,7 @@ import StateCard from "../components/StateCard";
 import { useNavigate } from "react-router-dom";
 import { formatTrafficValue } from "../utils";
 import type { Subscription } from "../types";
+import Editor from "@monaco-editor/react";
 import { debounce } from "lodash-es";
 import { api } from "../api";
 import dayjs from "dayjs";
@@ -587,6 +588,39 @@ function RowActions({
             onClick={() => onTogglePin(sub.id)}
           >
             {pinnedIds.includes(sub.id) ? "📌" : "📍"}
+          </Button>
+        </Tooltip>
+        <Tooltip title="预览完整配置">
+          <Button
+            type="text"
+            style={{ width: 36 }}
+            onClick={async () => {
+              try {
+                const content = await api.previewYaml(sub.id);
+                Modal.info({
+                  title: `配置预览 > ${sub.name}`,
+                  width: 800,
+                  closable: true,
+                  maskClosable: true,
+                  okText: "关闭",
+                  content: (
+                    <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+                      <Editor
+                        height="500px"
+                        theme="vs-dark"
+                        defaultLanguage="yaml"
+                        value={content}
+                        options={{ readOnly: true, minimap: { enabled: false } }}
+                      />
+                    </div>
+                  )
+                });
+              } catch (e: any) {
+                message.error(e.message || "预览失败");
+              }
+            }}
+          >
+            👁️
           </Button>
         </Tooltip>
         <Tooltip title="编辑订阅">

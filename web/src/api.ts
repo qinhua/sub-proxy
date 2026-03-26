@@ -151,6 +151,37 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data)
     })
+  ,
+  previewSub: (payload: Partial<Subscription>) =>
+    request<ApiResponse<{ content: string }>>("/api/subscription/preview", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  fetchSubscriptionYaml: async (subscribeUrl: string) => {
+    const res = await fetch(subscribeUrl, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`
+      }
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "预览获取失败");
+    }
+    return res.text();
+  }
+  ,
+  previewYaml: async (id: string) => {
+    const res = await fetch(`/api/subscription/${id}/preview-yaml`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`
+      }
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "预览获取失败");
+    }
+    return res.text();
+  }
 };
 
 export function buildSubscriptionUrl(
@@ -159,5 +190,5 @@ export function buildSubscriptionUrl(
   withTs = true
 ) {
   const url = `${baseUrl.replace(/\/$/, "")}/subscribe?id=${subId}`;
-  return withTs ? `${url}?t=${Date.now()}` : url;
+  return withTs ? `${url}&t=${Date.now()}` : url;
 }

@@ -31,6 +31,15 @@ export type Subscription = {
       content?: string;
       updateInterval?: number;
     }[];
+    ruleProviders?: {
+      id?: string;
+      name: string;
+      type: 'http';
+      url: string;
+      behavior: 'domain' | 'classical' | 'ipcidr';
+      interval?: number;
+      path?: string;
+    }[];
     chainProxies?: {
       id: string;
       name: string; // The proxy group name
