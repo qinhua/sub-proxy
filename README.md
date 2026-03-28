@@ -76,7 +76,7 @@ cd sub-proxy
 # 使用 Docker Compose 部署
 docker-compose up -d
 
-# 或使用 Docker 命令部署（数据卷根据情况自己修改）
+# 或使用 DockerHub 镜像部署（数据卷根据情况自己修改）
 docker run -d \
   --name sub-proxy-app \
   --restart unless-stopped \
@@ -84,6 +84,8 @@ docker run -d \
   -v /opt/sub-proxy/data:/app/server/data \
   -v /opt/sub-proxy/upload:/app/server/upload \
   -v /opt/sub-proxy/logs:/app/logs \
+  -e NODE_ENV=production \
+  -e WEB_PAGE_URL=https://sub-proxy.bbchin.com:50000 \
   marekqin/sub-proxy:latest
 /bin/sh -c ./start.sh
 ```
@@ -175,7 +177,7 @@ pnpm build
 
 ## 📦 部署方式
 
-### 1. Docker Compose 部署（推荐）
+### 1. 直接在项目目录下部署
 
 ```bash
 # 启动服务
@@ -188,9 +190,10 @@ docker-compose ps
 docker-compose logs -f
 ```
 
-### 2. 软路由/NAS部署
+### 2. 通过 Docker 镜像部署（推荐）
 
-详见 [部署文档](docs/DEPLOYMENT.md)
+请参见 [详细部署指南](docs/DEPLOYMENT.md)
+
 
 ## 💾 数据管理
 
@@ -234,7 +237,7 @@ docker-compose up -d
 
 ### 环境变量配置
 
-支持通过根目录的 `.env` / `.env.production` 进行环境配置：
+支持通过根目录的 `.env` / `.env.production` 进行环境配置，也可通过 docker 命令传入：
 
 ```env
 # 订阅头部展示的来源页面地址
@@ -245,15 +248,10 @@ WEB_PAGE_URL=https://sub-proxy.yourdomain.com
 
 | Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
 | ---------------------------------- | ----------- | ------------ | ------ |
-| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅     |
-| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅     |
-| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
-| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
-
-## 📚 文档
-
-- [完整部署指南](docs/DEPLOYMENT.md) - 包含所有部署、数据管理、密码重置等完整指南
-- [DockerHub 推送](docs/DOCKERHUB_PUSH.md) - DockerHub 镜像推送指南
+| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅      |
+| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅      |
+| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅      |
+| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌      |
 
 ## 🔄 升级流程
 

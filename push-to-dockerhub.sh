@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # DockerHub推送脚本
-# 使用方法: ./push-to-dockerhub.sh YOUR_USERNAME
+# 使用方法: ./push-to-dockerhub.sh YOUR_DOCKERHUB_USERNAME
 
 set -e
 
 if [ $# -eq 0 ]; then
     echo "❌ 请提供DockerHub用户名"
-    echo "使用方法: ./push-to-dockerhub.sh YOUR_USERNAME"
+    echo "使用方法: ./push-to-dockerhub.sh YOUR_DOCKERHUB_USERNAME"
     echo "例如: ./push-to-dockerhub.sh qinhua"
     exit 1
 fi
