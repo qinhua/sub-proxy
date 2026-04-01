@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  App as AntdApp,
   Form,
   Input,
   DatePicker,
@@ -7,24 +8,22 @@ import {
   InputNumber,
   Button,
   Space,
-  message,
   Typography,
   Card,
   Row,
   Col,
   Radio,
   Select,
-  Modal,
   Tag
 } from "antd";
 import { ArrowLeftOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Editor from "@monaco-editor/react";
 import { DEFAULT_BASE_CONFIG, DEFAULT_RULES, RULE_PRESETS } from "../constants";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import type { Subscription } from "../types";
+import Editor from "@monaco-editor/react";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "../api";
 import dayjs from "dayjs";
-import type { Subscription } from "../types";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 
@@ -32,6 +31,7 @@ const bytesToGb = (bytes: number) => Number((bytes / BYTES_PER_GB).toFixed(2));
 const gbToBytes = (gb: number) => Math.round(gb * BYTES_PER_GB);
 
 export function SubscriptionForm() {
+  const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -827,7 +827,7 @@ export function SubscriptionForm() {
                   const resp = await api.previewSub(payload);
                   const content = resp.data?.content || "";
                   setLoadingPreview(false);
-                  Modal.info({
+                  modal.info({
                     title: "完整配置预览",
                     width: 900,
                     closable: true,
