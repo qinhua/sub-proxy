@@ -154,12 +154,33 @@ export function createRouter(db: {
       };
 
       if (sub.configMode === "visual" && sub.visualConfig?.proxyProviders) {
+        const previewFailedProviders: { name: string; error: string }[] = [];
         for (const provider of sub.visualConfig.proxyProviders) {
-          if (provider.type === "url" && provider.url) {
+          try {
+            if (!provider || provider.type !== "url" || !provider.url) {
+              continue;
+            }
             const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
             provider.fetchedNodes = nodes;
             provider.lastFetchTime = dayjs().toISOString();
+          } catch (error: any) {
+            const errorMessage = error?.message || "未知错误";
+            previewFailedProviders.push({
+              name: provider?.name || "未命名订阅源",
+              error: errorMessage
+            });
+            console.error(
+              `Preview fetch failed for provider ${provider?.name || "unknown"}: ${errorMessage}`
+            );
           }
+        }
+        if (previewFailedProviders.length > 0) {
+          const failedDetail = previewFailedProviders
+            .map(item => `${item.name}: ${item.error}`)
+            .join("；");
+          ctx.body = createErrorResponse(`预览拉取节点失败：${failedDetail}`);
+          ctx.status = 400;
+          return;
         }
       }
 
@@ -529,31 +550,55 @@ export function createRouter(db: {
       }
 
       let fetchCount = 0;
+      const failedProviders: { name: string; error: string }[] = [];
       for (const provider of sub.visualConfig.proxyProviders) {
-        if (provider.type === 'url' && provider.url) {
-          try {
+        try {
+          if (!provider || provider.type !== 'url' || !provider.url) {
+            continue;
+          }
             const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
             provider.fetchedNodes = nodes;
             provider.lastFetchTime = dayjs().toISOString();
             fetchCount++;
-          } catch (error: any) {
-            console.error(`Fetch failed for provider ${provider.name}: ${error.message}`);
-            // Keep existing nodes if fetch fails
-          }
+        } catch (error: any) {
+          const errorMessage = error?.message || "未知错误";
+          failedProviders.push({
+            name: provider?.name || "未命名订阅源",
+            error: errorMessage
+          });
+          console.error(
+            `Fetch failed for provider ${provider?.name || "unknown"}: ${errorMessage}`
+          );
         }
       }
 
       if (fetchCount > 0) {
         sub.lastUpdatedAt = dayjs().toISOString();
         await db.write();
-        ctx.body = createSuccessResponse(sub, `成功更新了 ${fetchCount} 个订阅源的节点`);
+        if (failedProviders.length > 0) {
+          const failedDetail = failedProviders
+            .map(item => `${item.name}: ${item.error}`)
+            .join("；");
+          ctx.body = createSuccessResponse(
+            sub,
+            `成功更新了 ${fetchCount} 个订阅源，失败 ${failedProviders.length} 个。失败详情：${failedDetail}`
+          );
+        } else {
+          ctx.body = createSuccessResponse(sub, `成功更新了 ${fetchCount} 个订阅源的节点`);
+        }
+      } else if (failedProviders.length > 0) {
+        const failedDetail = failedProviders
+          .map(item => `${item.name}: ${item.error}`)
+          .join("；");
+        ctx.status = 400;
+        ctx.body = createErrorResponse(`节点拉取失败：${failedDetail}`);
       } else {
         ctx.body = createSuccessResponse(sub, "没有需要更新的订阅源或更新失败");
       }
     } catch (error) {
       console.error("拉取节点错误:", error);
       ctx.status = 500;
-      ctx.body = createErrorResponse("服务器内部错误");
+      ctx.body = createErrorResponse((error as Error)?.message || "服务器内部错误");
     }
   });
 

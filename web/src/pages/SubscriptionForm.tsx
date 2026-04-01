@@ -18,17 +18,27 @@ import {
   Tag
 } from "antd";
 import { ArrowLeftOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { DEFAULT_BASE_CONFIG, DEFAULT_RULES, RULE_PRESETS } from "../constants";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "../api";
 import dayjs from "dayjs";
+import type { Subscription } from "../types";
+
+const BYTES_PER_GB = 1024 * 1024 * 1024;
+
+const bytesToGb = (bytes: number) => Number((bytes / BYTES_PER_GB).toFixed(2));
+const gbToBytes = (gb: number) => Math.round(gb * BYTES_PER_GB);
 
 export function SubscriptionForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
   const isEdit = Boolean(params.id);
+  const duplicateFrom = !isEdit
+    ? ((location.state as { duplicateFrom?: Subscription } | null)?.duplicateFrom ?? null)
+    : null;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [yaml, setYaml] = useState(
@@ -36,6 +46,7 @@ export function SubscriptionForm() {
   );
   const [configMode, setConfigMode] = useState<'yaml' | 'visual'>('yaml');
   const [selectedRulePreset, setSelectedRulePreset] = useState<string>('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Visual Config states
   const [baseConfig, setBaseConfig] = useState(DEFAULT_BASE_CONFIG);
@@ -71,8 +82,8 @@ export function SubscriptionForm() {
           name: target.name,
           description: target.description,
           enabled: target.enabled,
-          totalTrafficBytes: hasTrafficLimit
-            ? target.totalTrafficBytes
+          totalTrafficGb: hasTrafficLimit
+            ? bytesToGb(target.totalTrafficBytes ?? 0)
             : undefined,
           period: startTime && expireTime ? [startTime, expireTime] : undefined,
           proxyProviders: target.visualConfig?.proxyProviders || [],
@@ -86,8 +97,32 @@ export function SubscriptionForm() {
           if (target.visualConfig.rules) setRulesConfig(target.visualConfig.rules);
         }
       });
+    } else if (duplicateFrom) {
+      const hasTrafficLimit = duplicateFrom.totalTrafficBytes !== null;
+      setUnlimitedTraffic(!hasTrafficLimit);
+
+      const isPermanent = !duplicateFrom.expireAt;
+      const startTime = duplicateFrom.startAt ? dayjs(duplicateFrom.startAt) : null;
+      const expireTime = duplicateFrom.expireAt ? dayjs(duplicateFrom.expireAt) : null;
+      setPermanentValid(isPermanent || !expireTime);
+
+      form.setFieldsValue({
+        name: `${duplicateFrom.name}-副本`,
+        description: duplicateFrom.description,
+        enabled: duplicateFrom.enabled,
+        totalTrafficGb: hasTrafficLimit
+          ? bytesToGb(duplicateFrom.totalTrafficBytes ?? 0)
+          : undefined,
+        period: startTime && expireTime ? [startTime, expireTime] : [dayjs(), dayjs().add(30, "day")],
+        proxyProviders: duplicateFrom.visualConfig?.proxyProviders || [],
+        chainProxies: duplicateFrom.visualConfig?.chainProxies || [],
+        ruleProviders: duplicateFrom.visualConfig?.ruleProviders || []
+      });
+      setConfigMode(duplicateFrom.configMode || "yaml");
+      setYaml(duplicateFrom.yamlConfig || "");
+      if (duplicateFrom.visualConfig?.baseConfig) setBaseConfig(duplicateFrom.visualConfig.baseConfig);
+      if (duplicateFrom.visualConfig?.rules) setRulesConfig(duplicateFrom.visualConfig.rules);
     } else {
-      // Default lists for create
       form.setFieldsValue({
         proxyProviders: [],
         chainProxies: [],
@@ -110,56 +145,112 @@ export function SubscriptionForm() {
         message.info("该规则引用已存在");
         return current;
       }
-      const sep = current.endsWith("\n") ? "" : "\n";
-      return current + sep + line + "\n";
+      if (!current.trim()) {
+        return `${line}\n`;
+      }
+      message.success("已在分流规则中引用该规则集");
+      return `${line}\n${current}`;
     });
-    message.success("已在分流规则中引用该规则集");
   };
 
-  const onFinish = async (values: any) => {
+  const handleRemoveFromRulesConfig = (rulesetName: string) => {
+    const name = (rulesetName || "").trim();
+    if (!name) {
+      return;
+    }
+    setRulesConfig(prev => {
+      const current = prev || "";
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const ruleSetLinePattern = new RegExp(
+        `^\\s*-\\s*RULE-SET\\s*,\\s*${escapedName}\\s*,`,
+        "i"
+      );
+      return current
+        .split("\n")
+        .filter(line => !ruleSetLinePattern.test(line))
+        .join("\n");
+    });
+  };
+
+  const buildPayload = (values: any) => {
+    let startAt;
+    let expireAt;
+    if (permanentValid) {
+      startAt = "";
+      expireAt = "";
+    } else {
+      [startAt, expireAt] = values.period || [];
+    }
+
+    return {
+      name: values.name,
+      description: values.description,
+      enabled: values.enabled ?? true,
+      totalTrafficBytes: unlimitedTraffic
+        ? null
+        : gbToBytes(values.totalTrafficGb ?? 0),
+      startAt: startAt?.toISOString?.() || "",
+      expireAt: expireAt?.toISOString?.() || "",
+      yamlConfig: yaml,
+      configMode: configMode,
+      visualConfig: {
+        baseConfig: baseConfig,
+        rules: rulesConfig,
+        proxyProviders: values.proxyProviders || [],
+        ruleProviders: values.ruleProviders || [],
+        chainProxies: values.chainProxies || []
+      }
+    };
+  };
+
+  const hasUrlProxyProvider = (values: any) => {
+    return configMode === "visual" && (values.proxyProviders || []).some(
+      (provider: any) => provider?.type === "url" && provider?.url?.trim()
+    );
+  };
+
+  const submitSubscription = async (
+    values: any,
+    options: { navigateAfterSave?: boolean; forceFetchNodes?: boolean } = {}
+  ) => {
+    const { navigateAfterSave = true, forceFetchNodes = false } = options;
     setLoading(true);
     try {
-      let startAt, expireAt;
+      const payload = buildPayload(values);
+      let savedId = params.id as string;
 
-      if (permanentValid) {
-        // 永久有效：开始时间为当前时间，结束时间为100年后
-        startAt = "";
-        expireAt = "";
-      } else {
-        [startAt, expireAt] = values.period;
-      }
-
-      const payload = {
-        name: values.name,
-        description: values.description,
-        enabled: values.enabled ?? true,
-        totalTrafficBytes: unlimitedTraffic
-          ? null
-          : (values.totalTrafficBytes ?? null),
-        startAt: startAt?.toISOString?.() || "",
-        expireAt: expireAt?.toISOString?.() || "",
-        yamlConfig: yaml,
-        configMode: configMode,
-        visualConfig: {
-          baseConfig: baseConfig,
-          rules: rulesConfig,
-          proxyProviders: values.proxyProviders || [],
-          ruleProviders: values.ruleProviders || [],
-          chainProxies: values.chainProxies || []
-        }
-      };
       if (isEdit) {
-        await api.updateSub(params.id as string, payload);
-        message.success("已保存");
+        await api.updateSub(savedId, payload);
       } else {
-        await api.createSub(payload as any);
-        message.success("已创建");
+        const created = await api.createSub(payload as any);
+        savedId = created.data?.id || "";
       }
-      navigate("/");
+
+      const shouldFetchNodes = forceFetchNodes || hasUrlProxyProvider(values);
+      if (shouldFetchNodes) {
+        if (!savedId) {
+          throw new Error("未获取到订阅ID，无法拉取节点");
+        }
+        const fetchResult = await api.fetchNodes(savedId);
+        message.success(fetchResult.message || (isEdit ? "已保存并自动拉取节点" : "已创建并自动拉取节点"));
+      } else {
+        message.success(isEdit ? "已保存" : "已创建");
+      }
+
+      if (navigateAfterSave) {
+        navigate("/");
+      }
+    } catch (e: any) {
+      message.error(e.response?.data?.message || e.message || "保存失败");
+      throw e;
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const onFinish = async (values: any) => {
+    await submitSubscription(values);
+  };
 
   return (
     <div className="max-w px-6 py-4">
@@ -305,17 +396,19 @@ export function SubscriptionForm() {
 
             {!unlimitedTraffic && (
               <Form.Item
-                label="总流量（字节）"
-                name="totalTrafficBytes"
+                label="总流量（GB）"
+                name="totalTrafficGb"
                 rules={[{ required: true, message: "请输入流量限制" }]}
                 tooltip="1GB = 1073741824 字节"
               >
                 <InputNumber
                   style={{ width: "100%" }}
-                  placeholder="例如：107374182400 表示100GB"
-                  min={1}
+                  placeholder="例如：100"
+                  min={0.01}
+                  precision={2}
+                  step={0.5}
                   size="large"
-                  addonAfter="字节"
+                  addonAfter="GB"
                 />
               </Form.Item>
             )}
@@ -474,12 +567,12 @@ export function SubscriptionForm() {
                                             type="primary"
                                             onClick={async () => {
                                               try {
-                                                await onFinish(form.getFieldsValue());
-                                                await api.fetchNodes(params.id as string);
-                                                message.success("拉取成功");
-                                              } catch (e: any) {
-                                                message.error(e.response?.data?.message || "拉取失败");
-                                              }
+                                                const values = await form.validateFields();
+                                                await submitSubscription(values, {
+                                                  navigateAfterSave: false,
+                                                  forceFetchNodes: true
+                                                });
+                                              } catch { }
                                             }}
                                           >
                                             保存并拉取节点
@@ -599,7 +692,7 @@ export function SubscriptionForm() {
                               }
                             ]
                           });
-                          message.success("已添加预设规则集");
+                          // message.success("已添加预设规则集");
                         }}
                         disabled={!selectedRulePreset}
                         icon={<PlusOutlined />}
@@ -633,7 +726,15 @@ export function SubscriptionForm() {
                                 </Button>
                                 <Button
                                   size="small"
-                                  danger type="text" icon={<MinusCircleOutlined />} onClick={() => remove(field.name)}>
+                                  danger
+                                  type="text"
+                                  icon={<MinusCircleOutlined />}
+                                  onClick={() => {
+                                    const ruleSetName = ruleProvidersWatch?.[index]?.name;
+                                    remove(field.name);
+                                    handleRemoveFromRulesConfig(ruleSetName);
+                                  }}
+                                >
                                   移除
                                 </Button>
                               </Space>
@@ -717,29 +818,15 @@ export function SubscriptionForm() {
           <div className="flex justify-end space-x-4">
             <Button
               size="large"
+              loading={loadingPreview}
               onClick={async () => {
                 try {
-                  const values = form.getFieldsValue();
-                  const [startAt, expireAt] = values.period || [];
-                  const payload = {
-                    name: values.name,
-                    description: values.description,
-                    enabled: values.enabled ?? true,
-                    totalTrafficBytes: (values.totalTrafficBytes ?? null) ?? null,
-                    startAt: startAt?.toISOString?.() || "",
-                    expireAt: expireAt?.toISOString?.() || "",
-                    yamlConfig: yaml,
-                    configMode: configMode,
-                    visualConfig: {
-                      baseConfig,
-                      rules: rulesConfig,
-                      proxyProviders: values.proxyProviders || [],
-                      ruleProviders: values.ruleProviders || [],
-                      chainProxies: values.chainProxies || []
-                    }
-                  };
+                  setLoadingPreview(true);
+                  const values = await form.validateFields();
+                  const payload = buildPayload(values);
                   const resp = await api.previewSub(payload);
                   const content = resp.data?.content || "";
+                  setLoadingPreview(false);
                   Modal.info({
                     title: "完整配置预览",
                     width: 900,
@@ -759,11 +846,12 @@ export function SubscriptionForm() {
                     )
                   });
                 } catch (e: any) {
+                  setLoadingPreview(false);
                   message.error(e.message || "预览失败");
                 }
               }}
             >
-              预览完整配置
+              {loadingPreview ? '配置生成中...' : '预览完整配置'}
             </Button>
             <Button size="large" onClick={() => navigate("/")}>
               取消

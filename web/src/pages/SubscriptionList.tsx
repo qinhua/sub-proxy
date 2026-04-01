@@ -28,6 +28,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   GlobalOutlined,
+  LinkOutlined,
   BarChartOutlined,
   ThunderboltOutlined,
   RocketOutlined,
@@ -551,6 +552,11 @@ export function SubscriptionList() {
                   sub={record}
                   onChanged={refresh}
                   onEdit={() => navigate(`/edit/${record.id}`)}
+                  onDuplicate={() =>
+                    navigate("/create", {
+                      state: { duplicateFrom: record }
+                    })
+                  }
                   pinnedIds={pinned}
                   onTogglePin={togglePin}
                 />
@@ -567,12 +573,14 @@ function RowActions({
   sub,
   onChanged,
   onEdit,
+  onDuplicate,
   pinnedIds,
   onTogglePin
 }: {
   sub: Subscription;
   onChanged: () => void;
   onEdit: () => void;
+  onDuplicate: () => void;
   pinnedIds: string[];
   onTogglePin: (id: string) => void;
 }) {
@@ -645,11 +653,19 @@ function RowActions({
         </Tooltip>
       </Space>
       <Space size={4}>
-        <Tooltip title="复制订阅URL">
+        <Tooltip title="基于此配置创建新订阅">
           <Button
             type="text"
             style={{ width: 36 }}
             icon={<CopyOutlined />}
+            onClick={onDuplicate}
+          />
+        </Tooltip>
+        <Tooltip title="复制订阅URL">
+          <Button
+            type="text"
+            style={{ width: 36 }}
+            icon={<LinkOutlined />}
             onClick={() => {
               const url = buildSubscriptionUrl(sub.id, true);
               const success = copy(url);
