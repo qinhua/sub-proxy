@@ -6,11 +6,11 @@ export const generateAvatarUrl = (avatar?: string, isFullPath = false) => {
   return `${isFullPath ? `${location.origin}` : ""}${avatar.startsWith("/upload/avatar/") ? "" : "/upload/avatar/"}${avatar}`;
 };
 
-export async function fetchProxyNodesFromUrl(url: string): Promise<any[]> {
+export async function fetchProxyNodesFromUrl(url: string, userAgent = "clash"): Promise<any[]> {
   try {
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Clash/1.0.0 (Windows NT 10.0; Win64; x64)"
+        "User-Agent": userAgent
       },
       timeout: 15000
     } as any);

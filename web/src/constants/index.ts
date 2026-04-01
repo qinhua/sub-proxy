@@ -1,14 +1,10 @@
 // 基础配置
 export const DEFAULT_BASE_CONFIG = `# ================= 基础配置 =================
+mode: rule
 port: 7890
-socks-port: 7891
-redir-port: 7892
-tproxy-port: 7893
 bind-address: "*"
 allow-lan: true
-mode: rule
 log-level: info
-external-controller: 0.0.0.0:9090
 dns:
   enable: true
   ipv6: false
@@ -36,6 +32,7 @@ dns:
       - 0.0.0.0/32
     domain:
       - geosite:geolocation-!cn
+      
 # ================= 代理组基础配置 =================
 proxy-groups:
   - name: "🌏 国外通用"
@@ -77,3 +74,6 @@ export const RULE_PRESETS = [
     interval: 86400,
   }
 ];
+
+// 默认 User-Agent
+export const DEFAULT_FETCH_UA = "clash-verge";

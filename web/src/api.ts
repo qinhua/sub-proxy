@@ -112,8 +112,8 @@ export const api = {
     request<ApiResponse<Subscription>>(`/api/subscription/${id}/toggle`, {
       method: "POST"
     }),
-  fetchNodes: (id: string) =>
-    request<ApiResponse>(`/api/subscription/${id}/fetch-nodes`, {
+  fetchNodes: (id: string, ua = "clash-verge") =>
+    request<ApiResponse>(`/api/subscription/${id}/fetch-nodes?ua=${ua}`, {
       method: "POST"
     }),
   updatePinnedOrder: (pinnedIds: string[]) =>
@@ -152,8 +152,8 @@ export const api = {
       body: JSON.stringify(data)
     })
   ,
-  previewSub: (payload: Partial<Subscription>) =>
-    request<ApiResponse<{ content: string }>>("/api/subscription/preview", {
+  previewSub: (payload: Partial<Subscription>, ua = "clash-verge") =>
+    request<ApiResponse<{ content: string }>>(`/api/subscription/preview?ua=${encodeURIComponent(ua)}`, {
       method: "POST",
       body: JSON.stringify(payload)
     }),

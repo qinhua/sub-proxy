@@ -28,6 +28,7 @@ const __dirname = path.dirname(__filename);
 
 // 用 1000PB 代表无限流量
 const TB1000 = 1024 * 1024 * 1024 * 1024 * 1024 * 1000;
+const DEFAULT_FETCH_UA = "clash-verge";
 
 const subInputSchema = z.object({
   name: z.string().min(1),
@@ -129,6 +130,8 @@ export function createRouter(db: {
   router.post("/api/subscription/preview", authMiddleware, async ctx => {
     try {
       const incoming = ctx.request.body as Partial<Subscription>;
+      const uaFromQuery = typeof ctx.query.ua === "string" ? ctx.query.ua.trim() : "";
+      const ua = uaFromQuery || DEFAULT_FETCH_UA;
       if (!incoming || !incoming.name) {
         ctx.status = 400;
         ctx.body = createErrorResponse("参数缺失：name");
@@ -149,6 +152,16 @@ export function createRouter(db: {
         createAt: incoming.createAt || dayjs().toISOString(),
         lastUpdatedAt: dayjs().toISOString()
       };
+
+      if (sub.configMode === "visual" && sub.visualConfig?.proxyProviders) {
+        for (const provider of sub.visualConfig.proxyProviders) {
+          if (provider.type === "url" && provider.url) {
+            const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
+            provider.fetchedNodes = nodes;
+            provider.lastFetchTime = dayjs().toISOString();
+          }
+        }
+      }
 
       const isForeverValid = !sub.expireAt;
       const isUnlimitTraffic = sub.totalTrafficBytes === null;
@@ -500,6 +513,8 @@ export function createRouter(db: {
   router.post("/api/subscription/:id/fetch-nodes", authMiddleware, async ctx => {
     try {
       const { id } = ctx.params;
+      const uaFromQuery = typeof ctx.query.ua === "string" ? ctx.query.ua.trim() : "";
+      const ua = uaFromQuery || DEFAULT_FETCH_UA;
       const sub = db.data.subscriptions.find(s => s.id === id);
       if (!sub) {
         ctx.status = 404;
@@ -517,7 +532,7 @@ export function createRouter(db: {
       for (const provider of sub.visualConfig.proxyProviders) {
         if (provider.type === 'url' && provider.url) {
           try {
-            const nodes = await fetchProxyNodesFromUrl(provider.url);
+            const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
             provider.fetchedNodes = nodes;
             provider.lastFetchTime = dayjs().toISOString();
             fetchCount++;
