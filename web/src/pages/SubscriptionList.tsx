@@ -653,14 +653,6 @@ function RowActions({
         </Tooltip>
       </Space>
       <Space size={4}>
-        <Tooltip title="基于此配置创建新订阅">
-          <Button
-            type="text"
-            style={{ width: 36 }}
-            icon={<CopyOutlined />}
-            onClick={onDuplicate}
-          />
-        </Tooltip>
         <Tooltip title="复制订阅URL">
           <Button
             type="text"
@@ -716,6 +708,14 @@ function RowActions({
                 )
               });
             }}
+          />
+        </Tooltip>
+        <Tooltip title="基于此配置创建新订阅">
+          <Button
+            type="text"
+            style={{ width: 36 }}
+            icon={<CopyOutlined />}
+            onClick={onDuplicate}
           />
         </Tooltip>
         <Popconfirm
