@@ -20,13 +20,14 @@ export type Subscription = {
   lastUpdatedAt: string;
   yamlConfig: string;
   pinnedOrder?: number; // 置顶顺序，越小越靠前，undefined 表示未置顶
-  configMode?: 'yaml' | 'visual';
+  configMode?: "yaml" | "visual";
   visualConfig?: {
     baseConfig?: string;
+    proxyGroupsConfig?: string;
     proxyProviders?: {
       id: string;
       name: string;
-      type: 'url' | 'content';
+      type: "url" | "content";
       url?: string;
       content?: string;
       updateInterval?: number;
@@ -34,9 +35,9 @@ export type Subscription = {
     ruleProviders?: {
       id?: string;
       name: string;
-      type: 'http';
+      type: "http";
       url: string;
-      behavior: 'domain' | 'classical' | 'ipcidr';
+      behavior: "domain" | "classical" | "ipcidr";
       interval?: number;
       path?: string;
     }[];

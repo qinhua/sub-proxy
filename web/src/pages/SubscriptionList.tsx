@@ -38,20 +38,38 @@ import {
 import { buildSubscriptionUrl } from "../utils/subscriptionUrl";
 import StateCard from "../components/StateCard";
 import { useNavigate } from "react-router-dom";
-import { formatTrafficValue } from "../utils";
 import type { Subscription } from "../types";
 import Editor from "@monaco-editor/react";
 import { debounce } from "lodash-es";
+import numeral from "numeral";
 import { api } from "../api";
 import dayjs from "dayjs";
 import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
-  // @ts-ignore
 } from "@sub-proxy/types";
 
 export function SubscriptionList() {
+  const formatTrafficValue = (bytes: number) => {
+    if (bytes >= 1024 * 1024 * 1024 * 1024 * 1024) {
+      return `${numeral(bytes / (1024 * 1024 * 1024 * 1024 * 1024)).format("0.[00]")} PB`;
+    }
+    if (bytes >= 1024 * 1024 * 1024 * 1024) {
+      return `${numeral(bytes / (1024 * 1024 * 1024 * 1024)).format("0.[00]")} TB`;
+    }
+    if (bytes >= 1024 * 1024 * 1024) {
+      return `${numeral(bytes / (1024 * 1024 * 1024)).format("0.[00]")} GB`;
+    }
+    if (bytes >= 1024 * 1024) {
+      return `${numeral(bytes / (1024 * 1024)).format("0.[00]")} MB`;
+    }
+    if (bytes >= 1024) {
+      return `${numeral(bytes / 1024).format("0.[00]")} KB`;
+    }
+    return `${numeral(bytes).format("0.[00]")} B`;
+  };
+
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -138,7 +156,10 @@ export function SubscriptionList() {
   }, [stats, subs]);
 
   // 格式化流量显示
-  const formatTraffic = (totalBytes: number | null, usedBytes: number | undefined) => {
+  const formatTraffic = (
+    totalBytes: number | null,
+    usedBytes: number | undefined
+  ) => {
     const usedStr = formatTrafficValue(usedBytes || 0);
 
     if (totalBytes === null) {
@@ -156,14 +177,27 @@ export function SubscriptionList() {
     }
 
     const totalStr = formatTrafficValue(totalBytes);
-    const percent = Math.min(100, Math.round(((usedBytes || 0) / totalBytes) * 100));
+    const percent = Math.min(
+      100,
+      Math.round(((usedBytes || 0) / totalBytes) * 100)
+    );
 
     return (
-      <Space direction="vertical" size={0} style={{ width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <Space direction="vertical" size={0} style={{ width: "100%" }}>
+        <div style={{ display: "flex", justifyContent: "center" }}>
           <span style={{ fontWeight: 500 }}>{totalStr}</span>
         </div>
-        <div style={{ fontSize: '12px', color: percent > 90 ? percent >= 100 ? '#ff4d4f' : '#faad14' : '#8c8c8c' }}>
+        <div
+          style={{
+            fontSize: "12px",
+            color:
+              percent > 90
+                ? percent >= 100
+                  ? "#ff4d4f"
+                  : "#faad14"
+                : "#8c8c8c"
+          }}
+        >
           {percent >= 100 ? "已耗尽 " : `已用: ${usedStr} (${percent}%)`}
         </div>
       </Space>
@@ -215,7 +249,15 @@ export function SubscriptionList() {
             {isExpired ? "已过期" : isExpiringSoon ? "即将过期" : "限时有效"}
           </span>
         </div>
-        <Typography.Text type="secondary" style={{ display: 'inline-block', fontSize: "12px", whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+        <Typography.Text
+          type="secondary"
+          style={{
+            display: "inline-block",
+            fontSize: "12px",
+            whiteSpace: "pre-wrap",
+            lineHeight: 1.4
+          }}
+        >
           {`${startTime.format("YYYY-MM-DD HH:mm")}\n${expireTime.format("YYYY-MM-DD HH:mm")}`}
         </Typography.Text>
       </Space>
@@ -501,7 +543,8 @@ export function SubscriptionList() {
               dataIndex: "totalTrafficBytes",
               width: 150,
               align: "center",
-              render: (_, record) => formatTraffic(record.totalTrafficBytes, record.usedTrafficBytes)
+              render: (_, record) =>
+                formatTraffic(record.totalTrafficBytes, record.usedTrafficBytes)
             },
             {
               title: "有效期",
@@ -612,13 +655,22 @@ function RowActions({
                   maskClosable: true,
                   okText: "关闭",
                   content: (
-                    <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        border: "1px solid #eee",
+                        borderRadius: 8,
+                        overflow: "hidden"
+                      }}
+                    >
                       <Editor
                         height="500px"
                         theme="vs-dark"
                         defaultLanguage="yaml"
                         value={content}
-                        options={{ readOnly: true, minimap: { enabled: false } }}
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false }
+                        }}
                       />
                     </div>
                   )

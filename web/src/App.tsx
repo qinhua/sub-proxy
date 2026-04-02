@@ -214,7 +214,7 @@ function MainLayout() {
             selectedKeys={getSelectedKey()}
             items={menuItems.map(item => ({
               ...item,
-              label: collapsed ? '' : item.label,
+              label: collapsed ? "" : item.label,
               style: {
                 justifyContent: collapsed ? "center" : "flex-start",
                 height: 50,
@@ -227,7 +227,7 @@ function MainLayout() {
               borderRight: 0,
               paddingTop: 16,
               fontWeight: 600,
-              fontSize: 16,
+              fontSize: 16
             }}
           />
           {/* 菜单底部折叠按钮 */}

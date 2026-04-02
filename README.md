@@ -194,7 +194,6 @@ docker-compose logs -f
 
 请参见 [详细部署指南](docs/DEPLOYMENT.md)
 
-
 ## 💾 数据管理
 
 ### 备份数据
@@ -248,10 +247,10 @@ WEB_PAGE_URL=https://sub-proxy.yourdomain.com
 
 | Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
 | ---------------------------------- | ----------- | ------------ | ------ |
-| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅      |
-| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅      |
-| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅      |
-| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌      |
+| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅     |
+| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅     |
+| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
+| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
 
 ## 🔄 升级流程
 
@@ -430,6 +429,7 @@ docker logs <容器名称>
 <br/>
 
 ---
+
 <div align="center">
 
 **SubProxy** - 让订阅管理更简单！

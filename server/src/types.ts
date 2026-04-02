@@ -75,13 +75,14 @@ export interface Subscription {
   usedTrafficBytes?: number;
   yamlConfig: string;
   pinnedOrder?: number;
-  configMode?: 'yaml' | 'visual';
+  configMode?: "yaml" | "visual";
   visualConfig?: {
     baseConfig?: string;
+    proxyGroupsConfig?: string;
     proxyProviders?: {
       id: string;
       name: string;
-      type: 'url' | 'content';
+      type: "url" | "content";
       url?: string;
       content?: string;
       updateInterval?: number;
@@ -91,10 +92,10 @@ export interface Subscription {
     ruleProviders?: {
       id?: string;
       name: string;
-      type: 'http';
+      type: "http";
       url: string;
       isPreset?: boolean;
-      behavior: 'domain' | 'classical' | 'ipcidr';
+      behavior: "domain" | "classical" | "ipcidr";
       interval?: number;
       path?: string;
     }[];

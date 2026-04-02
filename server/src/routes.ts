@@ -65,72 +65,77 @@ export function createRouter(db: {
   });
 
   // 获取订阅 YAML 预览（用于管理端预览，不进行过期/流量阻断）
-  router.get("/api/subscription/:id/preview-yaml", authMiddleware, async ctx => {
-    try {
-      const { id } = ctx.params as { id: string };
-      const sub = db.data.subscriptions.find(s => s.id === id);
-      if (!sub) {
-        ctx.status = 404;
-        ctx.body = createErrorResponse("订阅不存在");
-        return;
+  router.get(
+    "/api/subscription/:id/preview-yaml",
+    authMiddleware,
+    async ctx => {
+      try {
+        const { id } = ctx.params as { id: string };
+        const sub = db.data.subscriptions.find(s => s.id === id);
+        if (!sub) {
+          ctx.status = 404;
+          ctx.body = createErrorResponse("订阅不存在");
+          return;
+        }
+
+        const isForeverValid = !sub.expireAt;
+        const now = dayjs();
+        let remainingDays = "永久有效";
+        let expireTime = "永久有效";
+        let totalTraffic: number | string = TB1000;
+
+        if (!isForeverValid) {
+          const expireAt = dayjs(sub.expireAt);
+          remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
+          expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
+        }
+
+        const usedTraffic = sub.usedTrafficBytes || 0;
+        if (sub.totalTrafficBytes !== null) {
+          totalTraffic = sub.totalTrafficBytes || 0;
+        }
+
+        const filename = sub.name;
+        const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
+        const webPageUrl = process.env.WEB_PAGE_URL;
+
+        // Subscription Basic Info
+        const headerComment = [
+          `info:`,
+          ` id: "${id}"`,
+          ` title: "${filename}"`,
+          ` website: "${webPageUrl}"`,
+          ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"`,
+          ` description: "${sub.description || "由 Sub-Proxy 生成的订阅配置"}"`,
+          ` upload: 0`,
+          ` download: ${usedTraffic}`,
+          ` total: ${totalTraffic}`,
+          ` support: ["clash", "openclash", "clash verge", "shadowrockets"]`,
+          ` remain_days: "${remainingDays}"`,
+          ` expire_time: "${expireTime}"`,
+          ` last_update: "${updatedAt}"`
+        ].join("\n");
+
+        const content = `${headerComment}\n\n${
+          sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
+        }`;
+
+        ctx.set("Content-Type", "text/yaml; charset=utf-8");
+        ctx.body = content;
+      } catch (error) {
+        console.error("订阅 YAML 预览错误:", error);
+        ctx.status = 500;
+        ctx.body = createErrorResponse("服务器内部错误");
       }
-
-      const isForeverValid = !sub.expireAt;
-      const now = dayjs();
-      let remainingDays = "永久有效";
-      let expireTime = "永久有效";
-      let totalTraffic: number | string = TB1000;
-
-      if (!isForeverValid) {
-        const expireAt = dayjs(sub.expireAt);
-        remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
-        expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
-      }
-
-      const usedTraffic = sub.usedTrafficBytes || 0;
-      if (sub.totalTrafficBytes !== null) {
-        totalTraffic = sub.totalTrafficBytes || 0;
-      }
-
-      const filename = sub.name;
-      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const webPageUrl = process.env.WEB_PAGE_URL;
-
-      const headerComment = [
-        `# Subscription Info Header`,
-        `info:`,
-        ` id: "${id}"`,
-        ` title: "${filename}"`,
-        ` website: "${webPageUrl}"`,
-        ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"`,
-        ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"`,
-        ` upload: 0`,
-        ` download: ${usedTraffic}`,
-        ` total: ${totalTraffic}`,
-        ` support: ["clash", "openclash", "clash verge", "shadowrockets"]`,
-        ` remain_days: "${remainingDays}"`,
-        ` expire_time: "${expireTime}"`,
-        ` last_update: "${updatedAt}"`
-      ].join("\n");
-
-      const content = `${headerComment}\n\n${
-        sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
-      }`;
-
-      ctx.set("Content-Type", "text/yaml; charset=utf-8");
-      ctx.body = content;
-    } catch (error) {
-      console.error("订阅 YAML 预览错误:", error);
-      ctx.status = 500;
-      ctx.body = createErrorResponse("服务器内部错误");
     }
-  });
+  );
 
-  // 预览生成完整配置（不改变数据库、不校验过期/流量）
+  // 预览生成完整配置
   router.post("/api/subscription/preview", authMiddleware, async ctx => {
     try {
       const incoming = ctx.request.body as Partial<Subscription>;
-      const uaFromQuery = typeof ctx.query.ua === "string" ? ctx.query.ua.trim() : "";
+      const uaFromQuery =
+        typeof ctx.query.ua === "string" ? ctx.query.ua.trim() : "";
       const ua = uaFromQuery || DEFAULT_FETCH_UA;
       if (!incoming || !incoming.name) {
         ctx.status = 400;
@@ -207,13 +212,12 @@ export function createRouter(db: {
       const webPageUrl = process.env.WEB_PAGE_URL;
 
       const headerComment = [
-        `# Subscription Info Header`,
         `info:`,
         ` id: "${sub.id}"`,
         ` title: "${filename}"`,
         ` website: "${webPageUrl}"`,
         ` source: "${ctx.request.protocol}://${ctx.request.host}/api/subscription/preview"`,
-        ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"`,
+        ` description: "${sub.description || "由 Sub-Proxy 生成的订阅配置"}"`,
         ` upload: 0`,
         ` download: ${sub.usedTrafficBytes || 0}`,
         ` total: ${totalTraffic}`,
@@ -391,7 +395,7 @@ export function createRouter(db: {
         startAt: parsed.data.startAt,
         expireAt: parsed.data.expireAt,
         yamlConfig: parsed.data.yamlConfig,
-        configMode: parsed.data.configMode || 'yaml',
+        configMode: parsed.data.configMode || "yaml",
         visualConfig: parsed.data.visualConfig,
         createAt: now,
         lastUpdatedAt: now
@@ -473,7 +477,10 @@ export function createRouter(db: {
         ...db.data.subscriptions[subIndex],
         ...parsed.data,
         usedTrafficBytes: db.data.subscriptions[subIndex].usedTrafficBytes || 0,
-        configMode: parsed.data.configMode || db.data.subscriptions[subIndex].configMode || 'yaml',
+        configMode:
+          parsed.data.configMode ||
+          db.data.subscriptions[subIndex].configMode ||
+          "yaml",
         visualConfig: parsed.data.visualConfig,
         lastUpdatedAt: now
       };
@@ -531,76 +538,91 @@ export function createRouter(db: {
   });
 
   // 手动拉取节点
-  router.post("/api/subscription/:id/fetch-nodes", authMiddleware, async ctx => {
-    try {
-      const { id } = ctx.params;
-      const uaFromQuery = typeof ctx.query.ua === "string" ? ctx.query.ua.trim() : "";
-      const ua = uaFromQuery || DEFAULT_FETCH_UA;
-      const sub = db.data.subscriptions.find(s => s.id === id);
-      if (!sub) {
-        ctx.status = 404;
-        ctx.body = createErrorResponse("订阅不存在");
-        return;
-      }
+  router.post(
+    "/api/subscription/:id/fetch-nodes",
+    authMiddleware,
+    async ctx => {
+      try {
+        const { id } = ctx.params;
+        const uaFromQuery =
+          typeof ctx.query.ua === "string" ? ctx.query.ua.trim() : "";
+        const ua = uaFromQuery || DEFAULT_FETCH_UA;
+        const sub = db.data.subscriptions.find(s => s.id === id);
+        if (!sub) {
+          ctx.status = 404;
+          ctx.body = createErrorResponse("订阅不存在");
+          return;
+        }
 
-      if (sub.configMode !== 'visual' || !sub.visualConfig?.proxyProviders) {
-        ctx.status = 400;
-        ctx.body = createErrorResponse("该订阅不是可视化配置模式或没有配置节点来源");
-        return;
-      }
+        if (sub.configMode !== "visual" || !sub.visualConfig?.proxyProviders) {
+          ctx.status = 400;
+          ctx.body = createErrorResponse(
+            "该订阅不是可视化配置模式或没有配置节点来源"
+          );
+          return;
+        }
 
-      let fetchCount = 0;
-      const failedProviders: { name: string; error: string }[] = [];
-      for (const provider of sub.visualConfig.proxyProviders) {
-        try {
-          if (!provider || provider.type !== 'url' || !provider.url) {
-            continue;
-          }
+        let fetchCount = 0;
+        const failedProviders: { name: string; error: string }[] = [];
+        for (const provider of sub.visualConfig.proxyProviders) {
+          try {
+            if (!provider || provider.type !== "url" || !provider.url) {
+              continue;
+            }
             const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
             provider.fetchedNodes = nodes;
             provider.lastFetchTime = dayjs().toISOString();
             fetchCount++;
-        } catch (error: any) {
-          const errorMessage = error?.message || "未知错误";
-          failedProviders.push({
-            name: provider?.name || "未命名订阅源",
-            error: errorMessage
-          });
-          console.error(
-            `Fetch failed for provider ${provider?.name || "unknown"}: ${errorMessage}`
-          );
+          } catch (error: any) {
+            const errorMessage = error?.message || "未知错误";
+            failedProviders.push({
+              name: provider?.name || "未命名订阅源",
+              error: errorMessage
+            });
+            console.error(
+              `Fetch failed for provider ${provider?.name || "unknown"}: ${errorMessage}`
+            );
+          }
         }
-      }
 
-      if (fetchCount > 0) {
-        sub.lastUpdatedAt = dayjs().toISOString();
-        await db.write();
-        if (failedProviders.length > 0) {
+        if (fetchCount > 0) {
+          sub.lastUpdatedAt = dayjs().toISOString();
+          await db.write();
+          if (failedProviders.length > 0) {
+            const failedDetail = failedProviders
+              .map(item => `${item.name}: ${item.error}`)
+              .join("；");
+            ctx.body = createSuccessResponse(
+              sub,
+              `成功更新了 ${fetchCount} 个订阅源，失败 ${failedProviders.length} 个。失败详情：${failedDetail}`
+            );
+          } else {
+            ctx.body = createSuccessResponse(
+              sub,
+              `成功更新了 ${fetchCount} 个订阅源的节点`
+            );
+          }
+        } else if (failedProviders.length > 0) {
           const failedDetail = failedProviders
             .map(item => `${item.name}: ${item.error}`)
             .join("；");
+          ctx.status = 400;
+          ctx.body = createErrorResponse(`节点拉取失败：${failedDetail}`);
+        } else {
           ctx.body = createSuccessResponse(
             sub,
-            `成功更新了 ${fetchCount} 个订阅源，失败 ${failedProviders.length} 个。失败详情：${failedDetail}`
+            "没有需要更新的订阅源或更新失败"
           );
-        } else {
-          ctx.body = createSuccessResponse(sub, `成功更新了 ${fetchCount} 个订阅源的节点`);
         }
-      } else if (failedProviders.length > 0) {
-        const failedDetail = failedProviders
-          .map(item => `${item.name}: ${item.error}`)
-          .join("；");
-        ctx.status = 400;
-        ctx.body = createErrorResponse(`节点拉取失败：${failedDetail}`);
-      } else {
-        ctx.body = createSuccessResponse(sub, "没有需要更新的订阅源或更新失败");
+      } catch (error) {
+        console.error("拉取节点错误:", error);
+        ctx.status = 500;
+        ctx.body = createErrorResponse(
+          (error as Error)?.message || "服务器内部错误"
+        );
       }
-    } catch (error) {
-      console.error("拉取节点错误:", error);
-      ctx.status = 500;
-      ctx.body = createErrorResponse((error as Error)?.message || "服务器内部错误");
     }
-  });
+  );
 
   // 订阅接口（公开访问）
   // 订阅url格式：http://192.168.0.1:3001/subscribe?id=c730fb28-3ec0-4196-be40-d667a3e18464&t=176104878698
@@ -657,13 +679,12 @@ export function createRouter(db: {
       const webPageUrl = process.env.WEB_PAGE_URL;
 
       const headerComment = [
-        `# Subscription Info Header`,
         `info:`,
         ` id: "${id}"  # 订阅ID`,
         ` title: "${filename}"  # 标题`,
         ` website: "${webPageUrl}"  # 网站`,
         ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"  # 来源`,
-        ` description: "${sub.description || '由 Sub-Proxy 生成的订阅配置'}"  # 描述`,
+        ` description: "${sub.description || "由 Sub-Proxy 生成的订阅配置"}"  # 描述`,
         ` upload: 0 # 已上传流量（字节）`,
         ` download: ${usedTraffic} # 已下载流量（字节）`,
         ` total: ${totalTraffic} # 总流量（字节）`,
@@ -674,7 +695,7 @@ export function createRouter(db: {
       ].join("\n");
 
       const content = `${headerComment}\n\n${
-        sub.configMode === 'visual' ? generateVisualYaml(sub) : sub.yamlConfig
+        sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
       }`;
 
       // 设置响应头 - 根据环境变量设置不同的缓存策略
@@ -726,7 +747,7 @@ export function createRouter(db: {
 
       // 记录流量（异步更新数据库）
       try {
-        const contentLength = Buffer.byteLength(content, 'utf8');
+        const contentLength = Buffer.byteLength(content, "utf8");
         sub.usedTrafficBytes = usedTraffic + contentLength;
         sub.lastUpdatedAt = dayjs().toISOString();
         db.write().catch(err => {

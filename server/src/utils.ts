@@ -6,7 +6,10 @@ export const generateAvatarUrl = (avatar?: string, isFullPath = false) => {
   return `${isFullPath ? `${location.origin}` : ""}${avatar.startsWith("/upload/avatar/") ? "" : "/upload/avatar/"}${avatar}`;
 };
 
-export async function fetchProxyNodesFromUrl(url: string, userAgent = "clash"): Promise<any[]> {
+export async function fetchProxyNodesFromUrl(
+  url: string,
+  userAgent = "clash"
+): Promise<any[]> {
   try {
     const response = await fetch(url, {
       headers: {
@@ -20,7 +23,7 @@ export async function fetchProxyNodesFromUrl(url: string, userAgent = "clash"): 
     }
 
     const text = await response.text();
-    
+
     // Try to parse as YAML
     try {
       const parsed = YAML.parse(text);
@@ -30,7 +33,7 @@ export async function fetchProxyNodesFromUrl(url: string, userAgent = "clash"): 
     } catch (e) {
       // Not a valid YAML or not clash format
     }
-    
+
     // If we reach here, it might be base64. We could decode it, but converting to clash format is complex.
     // We assume the URL provides Clash config when User-Agent is Clash.
     throw new Error("Invalid Clash configuration format received from URL.");
@@ -39,4 +42,3 @@ export async function fetchProxyNodesFromUrl(url: string, userAgent = "clash"): 
     throw error;
   }
 }
-

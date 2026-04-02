@@ -150,13 +150,15 @@ export const api = {
     request<ApiResponse>("/api/import", {
       method: "POST",
       body: JSON.stringify(data)
-    })
-  ,
-  previewSub: (payload: Partial<Subscription>, ua = "clash-verge") =>
-    request<ApiResponse<{ content: string }>>(`/api/subscription/preview?ua=${encodeURIComponent(ua)}`, {
-      method: "POST",
-      body: JSON.stringify(payload)
     }),
+  previewSub: (payload: Partial<Subscription>, ua = "clash-verge") =>
+    request<ApiResponse<{ content: string }>>(
+      `/api/subscription/preview?ua=${encodeURIComponent(ua)}`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      }
+    ),
   fetchSubscriptionYaml: async (subscribeUrl: string) => {
     const res = await fetch(subscribeUrl, {
       headers: {
@@ -168,8 +170,7 @@ export const api = {
       throw new Error(text || "预览获取失败");
     }
     return res.text();
-  }
-  ,
+  },
   previewYaml: async (id: string) => {
     const res = await fetch(`/api/subscription/${id}/preview-yaml`, {
       headers: {

@@ -1,6 +1,18 @@
-// 基础配置
-export const DEFAULT_BASE_CONFIG = `# ================= 基础配置 =================
+// 默认 YAML 配置
+export const DEFAULT_YAML_CONFIG = `# 在此粘贴 yaml 配置，以下是示例：
 mode: rule
+port: 7890
+bind-address: "*"
+allow-lan: true
+log-level: info
+dns:
+proxies:
+proxy-groups:
+rule-providers:
+rules:`;
+
+// 默认基础配置
+export const DEFAULT_BASE_CONFIG = `mode: rule
 port: 7890
 bind-address: "*"
 allow-lan: true
@@ -9,6 +21,7 @@ dns:
   enable: true
   ipv6: false
   use-hosts: true
+  respect-rules: true
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   default-nameserver:
@@ -31,20 +44,22 @@ dns:
       - 127.0.0.1/32
       - 0.0.0.0/32
     domain:
-      - geosite:geolocation-!cn
-      
-# ================= 代理组基础配置 =================
-proxy-groups:
+      - geosite:geolocation-!cn`;
+
+// 默认代理组配置
+export const DEFAULT_PROXY_GROUPS_CONFIG = `proxy-groups:
   - name: "🌏 国外通用"
     type: select
     proxies:
       - "🚀 自动优选加速"
+      - "🔧 手动选择"
       - DIRECT
-  - name: "🎯 国内直连"
+  - name: "🔧 手动选择"
     type: select
     proxies:
-      - DIRECT
-      - "🚀 自动优选加速"`;
+      - "🚀 自动优选加速"
+      - "🏠 美国住宅"
+      - DIRECT`;
 
 // 默认分流规则
 export const DEFAULT_RULES = `# 默认分流规则
@@ -59,19 +74,19 @@ export const RULE_PRESETS = [
     name: "ACL4SSR_Proxy",
     url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyLite.list",
     behavior: "classical" as const,
-    interval: 86400,
+    interval: 86400
   },
   {
     name: "ACL4SSR_Direct",
     url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaDomain.list",
     behavior: "classical" as const,
-    interval: 86400,
+    interval: 86400
   },
   {
     name: "ACL4SSR_BanAD",
     url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanAD.list",
     behavior: "classical" as const,
-    interval: 86400,
+    interval: 86400
   }
 ];
 

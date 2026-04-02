@@ -122,9 +122,7 @@ export function Settings() {
                   </div>
                   <div className="flex justify-between items-center">
                     <Typography.Text>API 基础 URL：</Typography.Text>
-                    <Typography.Text code>
-                      {API_BASE_URL}
-                    </Typography.Text>
+                    <Typography.Text code>{API_BASE_URL}</Typography.Text>
                   </div>
                   <div className="flex justify-between items-center">
                     <Typography.Text>订阅基础 URL：</Typography.Text>
