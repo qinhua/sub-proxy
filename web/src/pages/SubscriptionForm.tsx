@@ -876,7 +876,7 @@ export function SubscriptionForm() {
                   默认分类规则。
                   <br />
                   添加后可在下方 “分流规则” 编辑器中使用：
-                  <br />- RULE-SET,[规则名称],[目标策略组]。
+                  <br />- RULE-SET,[规则名称],[目标策略组]
                 </Typography.Paragraph>
                 <Row gutter={12} style={{ marginBottom: 12 }}>
                   <Col span={12}>
