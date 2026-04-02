@@ -93,7 +93,8 @@ export function generateVisualYaml(sub: Subscription): string {
   }
 
   // 3. Add Chain Proxies (Relay)
-  const AUTO_SELECT_GROUP_NAME = "🚀 自动优选加速";
+  const AUTO_SELECT_GROUP_NAME = "🚀 自动优选";
+  const MANUAL_SELECT_GROUP_NAME = "🔧 手动选择";
   const DEFAULT_FOREIGN_GROUP = "🌏 国外通用";
   const DEFAULT_DIRECT_GROUP = "🎯 国内直连";
 
@@ -117,6 +118,21 @@ export function generateVisualYaml(sub: Subscription): string {
         ...new Set([...(existingAutoSelect.proxies || []), ...allNodeNames])
       ];
     }
+  }
+
+  const autoSelectGroup = finalDoc["proxy-groups"].find(
+    (g: any) => g?.name === AUTO_SELECT_GROUP_NAME
+  );
+  const autoSelectNodes = Array.isArray(autoSelectGroup?.proxies)
+    ? autoSelectGroup.proxies
+    : [];
+  const manualSelectGroup = finalDoc["proxy-groups"].find(
+    (g: any) => g?.name === MANUAL_SELECT_GROUP_NAME
+  );
+  if (manualSelectGroup) {
+    manualSelectGroup.proxies = [
+      ...new Set([...(manualSelectGroup.proxies || []), ...autoSelectNodes])
+    ];
   }
 
   // Ensure default select groups exist for generic rules

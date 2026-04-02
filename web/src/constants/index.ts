@@ -51,15 +51,14 @@ export const DEFAULT_PROXY_GROUPS_CONFIG = `proxy-groups:
   - name: "🌏 国外通用"
     type: select
     proxies:
-      - "🚀 自动优选加速"
+      - "🚀 自动优选"
       - "🔧 手动选择"
       - DIRECT
   - name: "🔧 手动选择"
     type: select
     proxies:
-      - "🚀 自动优选加速"
-      - "🏠 美国住宅"
-      - DIRECT`;
+      - DIRECT
+      - "🏠 美国住宅"`;
 
 // 默认分流规则
 export const DEFAULT_RULES = `# 默认分流规则
