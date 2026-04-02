@@ -48,6 +48,7 @@ import {
   SubscriptionStatus,
   SubscriptionTraffic,
   SubscriptionValidity
+  // @ts-ignore
 } from "@sub-proxy/types";
 
 export function SubscriptionList() {
