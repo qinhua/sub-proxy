@@ -47,7 +47,8 @@ import dayjs from "dayjs";
 import {
   SubscriptionStatus,
   SubscriptionTraffic,
-  SubscriptionValidity
+  SubscriptionValidity,
+  isPermanentSubscription
   // @ts-ignore
 } from "@sub-proxy/types";
 
@@ -147,11 +148,9 @@ export function SubscriptionList() {
     const unlimitedTraffic = subs.filter(
       s => s.totalTrafficBytes === null
     ).length;
-    const permanent = subs.filter(s => {
-      const startTime = dayjs(s.startAt);
-      const expireTime = dayjs(s.expireAt);
-      return expireTime.diff(startTime, "year") > 50;
-    }).length;
+    const permanent = subs.filter(s =>
+      isPermanentSubscription(s.expireAt)
+    ).length;
 
     return { total, enabled, unlimitedTraffic, permanent };
   }, [stats, subs]);
@@ -207,7 +206,7 @@ export function SubscriptionList() {
 
   // 格式化有效期显示
   const formatValidity = (startAt: string, expireAt: string) => {
-    const isPermanent = !expireAt;
+    const isPermanent = isPermanentSubscription(expireAt);
 
     if (isPermanent) {
       return (

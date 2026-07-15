@@ -151,20 +151,15 @@ docker push YOUR_DOCKERHUB_USERNAME/sub-proxy:1.0.0
 
 ### 脚本一键推送
 
-> 使用 push-to-dockerhub.sh 脚本一键推送镜像到 DockerHub。
+> 使用 push-to-dockerhub.sh 脚本一键推送镜像到 DockerHub，。
 
 ```bash
-# A.直接运行脚本
-./push-to-dockerhub.sh YOUR_DOCKERHUB_USERNAME
-```
-
-```bash
-# B.通过 pnpm 命令执行
-
 # 1.构建镜像
 pnpm run docker:build
 
-# 2.推送镜像
+# 2.运行推送脚本
+./push-to-dockerhub.sh YOUR_DOCKERHUB_USERNAME
+# 也可将用户名配置到 package.json 中的 docker:publish 命令后，直接执行：
 pnpm run docker:publish
 ```
 

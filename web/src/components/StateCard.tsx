@@ -10,7 +10,7 @@ const StateCard = ({
 }: {
   title: string;
   subTitle: string;
-  value: string;
+  value: string | number;
   bgColor: string;
   icon: ReactNode;
 }) => {

@@ -18,7 +18,8 @@ import {
 import {
   SubscriptionStatus,
   SubscriptionTraffic,
-  SubscriptionValidity
+  SubscriptionValidity,
+  isPermanentSubscription
   // @ts-ignore
 } from "@sub-proxy/types";
 
@@ -29,6 +30,33 @@ const __dirname = path.dirname(__filename);
 // 用 1000PB 代表无限流量
 const TB1000 = 1024 * 1024 * 1024 * 1024 * 1024 * 1000;
 const DEFAULT_FETCH_UA = "clash-verge";
+const PERMANENT_EXPIRE_TIME = "2200-12-31 23:59:59";
+
+function getExpiryMetadata(expireAt?: string | null, now = dayjs()) {
+  const effectiveExpireAt = isPermanentSubscription(expireAt)
+    ? dayjs(PERMANENT_EXPIRE_TIME)
+    : dayjs(expireAt);
+
+  return {
+    remainingDays: String(Math.max(0, effectiveExpireAt.diff(now, "day"))),
+    expireTime: effectiveExpireAt.format("YYYY-MM-DD HH:mm:ss")
+  };
+}
+
+function getExpireUnix(expireAt?: string | null) {
+  const effectiveExpireAt = isPermanentSubscription(expireAt)
+    ? dayjs(PERMANENT_EXPIRE_TIME)
+    : dayjs(expireAt);
+
+  return effectiveExpireAt.unix();
+}
+
+function getWebPageUrl(ctx: any) {
+  return (
+    process.env.WEB_PAGE_URL ||
+    `${ctx.request.protocol}://${ctx.request.host}`
+  );
+}
 
 const subInputSchema = z.object({
   name: z.string().min(1),
@@ -78,17 +106,8 @@ export function createRouter(db: {
           return;
         }
 
-        const isForeverValid = !sub.expireAt;
-        const now = dayjs();
-        let remainingDays = "永久有效";
-        let expireTime = "永久有效";
+        const { remainingDays, expireTime } = getExpiryMetadata(sub.expireAt);
         let totalTraffic: number | string = TB1000;
-
-        if (!isForeverValid) {
-          const expireAt = dayjs(sub.expireAt);
-          remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
-          expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
-        }
 
         const usedTraffic = sub.usedTrafficBytes || 0;
         if (sub.totalTrafficBytes !== null) {
@@ -97,7 +116,7 @@ export function createRouter(db: {
 
         const filename = sub.name;
         const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
-        const webPageUrl = process.env.WEB_PAGE_URL;
+        const webPageUrl = getWebPageUrl(ctx);
 
         // Subscription Basic Info
         const headerComment = [
@@ -189,19 +208,10 @@ export function createRouter(db: {
         }
       }
 
-      const isForeverValid = !sub.expireAt;
       const isUnlimitTraffic = sub.totalTrafficBytes === null;
 
-      const now = dayjs();
-      let remainingDays = "永久有效";
-      let expireTime = "永久有效";
+      const { remainingDays, expireTime } = getExpiryMetadata(sub.expireAt);
       let totalTraffic: number | string = TB1000;
-
-      if (!isForeverValid) {
-        const expireAt = dayjs(sub.expireAt);
-        remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
-        expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
-      }
 
       if (!isUnlimitTraffic && sub.totalTrafficBytes !== null) {
         totalTraffic = sub.totalTrafficBytes;
@@ -209,7 +219,7 @@ export function createRouter(db: {
 
       const filename = sub.name;
       const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const webPageUrl = process.env.WEB_PAGE_URL;
+      const webPageUrl = getWebPageUrl(ctx);
 
       const headerComment = [
         `info:`,
@@ -291,14 +301,12 @@ export function createRouter(db: {
         ).length,
         limitedTraffic: subscriptions.filter(s => s.totalTrafficBytes !== null)
           .length,
-        permanent: subscriptions.filter(s => {
-          const expireTime = dayjs(s.expireAt);
-          return expireTime.diff(dayjs(s.startAt), "year") > 50;
-        }).length,
-        temporary: subscriptions.filter(s => {
-          const expireTime = dayjs(s.expireAt);
-          return expireTime.diff(dayjs(s.startAt), "year") <= 50;
-        }).length,
+        permanent: subscriptions.filter(s =>
+          isPermanentSubscription(s.expireAt)
+        ).length,
+        temporary: subscriptions.filter(
+          s => !isPermanentSubscription(s.expireAt)
+        ).length,
         pinned: subscriptions.filter(
           s => s.pinnedOrder !== undefined && s.pinnedOrder !== null
         ).length
@@ -347,8 +355,8 @@ export function createRouter(db: {
       if (validity) {
         const validityBool = validity === SubscriptionValidity.Permanent;
         filteredSubs = filteredSubs.filter(sub => {
-          const expireAt = sub.expireAt;
-          return validityBool ? expireAt === "" : expireAt !== "";
+          const isPermanent = isPermanentSubscription(sub.expireAt);
+          return validityBool ? isPermanent : !isPermanent;
         });
       }
 
@@ -417,7 +425,6 @@ export function createRouter(db: {
   router.put("/api/subscription/pinned", authMiddleware, async ctx => {
     try {
       const { pinnedIds } = ctx.request.body as { pinnedIds: string[] };
-      console.log(pinnedIds);
       if (!Array.isArray(pinnedIds)) {
         ctx.status = 400;
         ctx.body = createErrorResponse("参数格式错误");
@@ -520,12 +527,13 @@ export function createRouter(db: {
   });
 
   // 启用/禁用订阅
-  router.post("/api/subscription/:id/toggle", async ctx => {
+  router.post("/api/subscription/:id/toggle", authMiddleware, async ctx => {
     const { id } = ctx.params as { id: string };
     const sub = db.data.subscriptions.find(s => s.id === id);
     if (!sub) {
       ctx.status = 404;
       ctx.body = createErrorResponse("订阅不存在");
+      return;
     }
     sub.enabled = !sub.enabled;
     sub.lastUpdatedAt = dayjs().toISOString();
@@ -642,13 +650,15 @@ export function createRouter(db: {
         return;
       }
 
-      const isForeverValid = !sub.expireAt;
+      const isForeverValid = isPermanentSubscription(sub.expireAt);
       const isUnlimitTraffic = sub.totalTrafficBytes === null;
 
       // 检查是否过期
       const now = dayjs();
-      let remainingDays = "永久有效";
-      let expireTime = "永久有效";
+      const { remainingDays, expireTime } = getExpiryMetadata(
+        sub.expireAt,
+        now
+      );
       let totalTraffic: number | string = TB1000;
 
       if (!isForeverValid) {
@@ -659,8 +669,6 @@ export function createRouter(db: {
           ctx.body = createErrorResponse("订阅已过期");
           return;
         }
-        remainingDays = String(Math.max(0, expireAt.diff(now, "day")));
-        expireTime = expireAt.format("YYYY-MM-DD HH:mm:ss");
       }
 
       // 检查流量是否耗尽
@@ -676,7 +684,7 @@ export function createRouter(db: {
 
       const filename = sub.name;
       const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const webPageUrl = process.env.WEB_PAGE_URL;
+      const webPageUrl = getWebPageUrl(ctx);
 
       const headerComment = [
         `info:`,
@@ -729,16 +737,13 @@ export function createRouter(db: {
       }
 
       // 设置订阅头部信息
-      if (!isForeverValid || !isUnlimitTraffic) {
-        const expireAt = dayjs(sub.expireAt);
-        const expireUnix = !isForeverValid ? expireAt.unix() : 0;
-        const uploadBytes = 0;
-        const downloadBytes = usedTraffic;
-        ctx.set(
-          "Subscription-Userinfo",
-          `upload=${uploadBytes}; download=${downloadBytes}; total=${totalTraffic}; expire=${expireUnix}`
-        );
-      }
+      const expireUnix = getExpireUnix(sub.expireAt);
+      const uploadBytes = 0;
+      const downloadBytes = usedTraffic;
+      ctx.set(
+        "Subscription-Userinfo",
+        `upload=${uploadBytes}; download=${downloadBytes}; total=${totalTraffic}; expire=${expireUnix}`
+      );
       ctx.set("Profile-Web-Page-Url", webPageUrl); // 订阅页面
       ctx.set("Profile-Update-Interval", "24"); // 更新间隔（小时）
       ctx.set("Profile-Http-Request-Timeout", "24"); // 更新间隔（小时）
@@ -1030,7 +1035,7 @@ export function createRouter(db: {
   });
 
   // 备份
-  router.get("/api/export", async ctx => {
+  router.get("/api/export", authMiddleware, async ctx => {
     try {
       // 只导出订阅和设置，不包含用户数据
       const exportData = {
@@ -1053,7 +1058,7 @@ export function createRouter(db: {
   });
 
   // 恢复
-  router.post("/api/import", async ctx => {
+  router.post("/api/import", authMiddleware, async ctx => {
     const incoming = ctx.request.body as any;
 
     let importData: Partial<DbSchema>;

@@ -12,3 +12,7 @@ export enum SubscriptionValidity {
   Permanent = "permanent",
   Timed = "timed"
 }
+
+export function isPermanentSubscription(expireAt?: string | null): boolean {
+  return !expireAt;
+}
