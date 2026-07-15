@@ -1,6 +1,7 @@
 # 使用 pnpm 作为包管理器
-FROM node:18-alpine AS base
-RUN npm install -g pnpm
+FROM node:22-alpine AS base
+ENV PNPM_VERSION=10.28.2
+RUN npm install -g pnpm@${PNPM_VERSION}
 
 # 构建前端阶段
 FROM base AS web-builder
@@ -11,8 +12,9 @@ COPY server/package.json ./server/
 COPY shared/types/package.json ./shared/types/
 RUN pnpm install --frozen-lockfile
 
+COPY shared/ ./shared/
 COPY web/ ./web/
-RUN pnpm --filter web run build
+RUN pnpm --filter @sub-proxy/types run build && pnpm --filter web run build
 
 # 构建后端阶段
 FROM base AS server-builder
@@ -25,17 +27,14 @@ RUN pnpm install --frozen-lockfile
 
 COPY shared/ ./shared/
 COPY server/ ./server/
-RUN pnpm --filter server run build && pnpm --filter @sub-proxy/types run build
+RUN pnpm --filter @sub-proxy/types run build && pnpm --filter server run build
 
 # 生产镜像阶段
-FROM alpine:latest
+FROM base
 WORKDIR /app
 
-# 安装 Node.js 和必要工具
-RUN apk add --no-cache nodejs npm bash ca-certificates tzdata
-
-# 安装 pnpm
-RUN npm install -g pnpm
+# 安装必要工具
+RUN apk add --no-cache bash ca-certificates tzdata
 
 # 只安装生产依赖
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
