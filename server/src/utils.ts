@@ -10,35 +10,70 @@ export async function fetchProxyNodesFromUrl(
   url: string,
   userAgent = "clash"
 ): Promise<any[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
   try {
     const response = await fetch(url, {
       headers: {
         "User-Agent": userAgent
       },
-      timeout: 15000
-    } as any);
+      signal: controller.signal
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch from ${url}: ${response.statusText}`);
     }
 
     const text = await response.text();
-
-    // Try to parse as YAML
-    try {
-      const parsed = YAML.parse(text);
-      if (parsed && parsed.proxies && Array.isArray(parsed.proxies)) {
-        return parsed.proxies;
-      }
-    } catch (e) {
-      // Not a valid YAML or not clash format
+    const nodes = parseClashProxyNodes(text);
+    if (nodes.length > 0) {
+      return nodes;
     }
 
-    // If we reach here, it might be base64. We could decode it, but converting to clash format is complex.
-    // We assume the URL provides Clash config when User-Agent is Clash.
     throw new Error("Invalid Clash configuration format received from URL.");
   } catch (error) {
     console.error("fetchProxyNodesFromUrl error:", error);
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+export function parseClashProxyNodes(content: string): any[] {
+  const candidates = [content, decodeBase64Subscription(content)].filter(
+    (item): item is string => Boolean(item)
+  );
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = YAML.parse(candidate);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(node => node?.name);
+      }
+      if (parsed && Array.isArray(parsed.proxies)) {
+        return parsed.proxies.filter((node: any) => node?.name);
+      }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return [];
+}
+
+function decodeBase64Subscription(content: string) {
+  const compact = content.trim().replace(/\s+/g, "");
+  if (!compact || !/^[A-Za-z0-9+/_-]*={0,2}$/.test(compact)) {
+    return "";
+  }
+
+  const withoutPadding = compact.replace(/=+$/, "");
+  if (withoutPadding.length % 4 === 1) {
+    return "";
+  }
+
+  const normalized = withoutPadding.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(padded, "base64").toString("utf8");
 }

@@ -22,39 +22,20 @@ import {
   isPermanentSubscription
   // @ts-ignore
 } from "@sub-proxy/types";
+import {
+  buildSubscriptionInfoBlock,
+  buildSubscriptionUserinfo
+} from "./subscriptionMetadata";
 
 // 在 ES 模块中获取 __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 用 1000PB 代表无限流量
-const TB1000 = 1024 * 1024 * 1024 * 1024 * 1024 * 1000;
 const DEFAULT_FETCH_UA = "clash-verge";
-const PERMANENT_EXPIRE_TIME = "2200-12-31 23:59:59";
-
-function getExpiryMetadata(expireAt?: string | null, now = dayjs()) {
-  const effectiveExpireAt = isPermanentSubscription(expireAt)
-    ? dayjs(PERMANENT_EXPIRE_TIME)
-    : dayjs(expireAt);
-
-  return {
-    remainingDays: String(Math.max(0, effectiveExpireAt.diff(now, "day"))),
-    expireTime: effectiveExpireAt.format("YYYY-MM-DD HH:mm:ss")
-  };
-}
-
-function getExpireUnix(expireAt?: string | null) {
-  const effectiveExpireAt = isPermanentSubscription(expireAt)
-    ? dayjs(PERMANENT_EXPIRE_TIME)
-    : dayjs(expireAt);
-
-  return effectiveExpireAt.unix();
-}
 
 function getWebPageUrl(ctx: any) {
   return (
-    process.env.WEB_PAGE_URL ||
-    `${ctx.request.protocol}://${ctx.request.host}`
+    process.env.WEB_PAGE_URL || `${ctx.request.protocol}://${ctx.request.host}`
   );
 }
 
@@ -106,34 +87,13 @@ export function createRouter(db: {
           return;
         }
 
-        const { remainingDays, expireTime } = getExpiryMetadata(sub.expireAt);
-        let totalTraffic: number | string = TB1000;
-
-        const usedTraffic = sub.usedTrafficBytes || 0;
-        if (sub.totalTrafficBytes !== null) {
-          totalTraffic = sub.totalTrafficBytes || 0;
-        }
-
-        const filename = sub.name;
-        const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
         const webPageUrl = getWebPageUrl(ctx);
 
-        // Subscription Basic Info
-        const headerComment = [
-          `info:`,
-          ` id: "${id}"`,
-          ` title: "${filename}"`,
-          ` website: "${webPageUrl}"`,
-          ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"`,
-          ` description: "${sub.description || "由 Sub-Proxy 生成的订阅配置"}"`,
-          ` upload: 0`,
-          ` download: ${usedTraffic}`,
-          ` total: ${totalTraffic}`,
-          ` support: ["clash", "openclash", "clash verge", "shadowrockets"]`,
-          ` remain_days: "${remainingDays}"`,
-          ` expire_time: "${expireTime}"`,
-          ` last_update: "${updatedAt}"`
-        ].join("\n");
+        const headerComment = buildSubscriptionInfoBlock({
+          sub,
+          websiteUrl: webPageUrl,
+          sourceUrl: `${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}`
+        });
 
         const content = `${headerComment}\n\n${
           sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
@@ -210,32 +170,13 @@ export function createRouter(db: {
 
       const isUnlimitTraffic = sub.totalTrafficBytes === null;
 
-      const { remainingDays, expireTime } = getExpiryMetadata(sub.expireAt);
-      let totalTraffic: number | string = TB1000;
-
-      if (!isUnlimitTraffic && sub.totalTrafficBytes !== null) {
-        totalTraffic = sub.totalTrafficBytes;
-      }
-
-      const filename = sub.name;
-      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
       const webPageUrl = getWebPageUrl(ctx);
 
-      const headerComment = [
-        `info:`,
-        ` id: "${sub.id}"`,
-        ` title: "${filename}"`,
-        ` website: "${webPageUrl}"`,
-        ` source: "${ctx.request.protocol}://${ctx.request.host}/api/subscription/preview"`,
-        ` description: "${sub.description || "由 Sub-Proxy 生成的订阅配置"}"`,
-        ` upload: 0`,
-        ` download: ${sub.usedTrafficBytes || 0}`,
-        ` total: ${totalTraffic}`,
-        ` support: ["clash", "openclash", "clash verge", "shadowrockets"]`,
-        ` remain_days: "${remainingDays}"`,
-        ` expire_time: "${expireTime}"`,
-        ` last_update: "${updatedAt}"`
-      ].join("\n");
+      const headerComment = buildSubscriptionInfoBlock({
+        sub,
+        websiteUrl: webPageUrl,
+        sourceUrl: `${ctx.request.protocol}://${ctx.request.host}/api/subscription/preview`
+      });
 
       const content = `${headerComment}\n\n${
         sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
@@ -655,12 +596,6 @@ export function createRouter(db: {
 
       // 检查是否过期
       const now = dayjs();
-      const { remainingDays, expireTime } = getExpiryMetadata(
-        sub.expireAt,
-        now
-      );
-      let totalTraffic: number | string = TB1000;
-
       if (!isForeverValid) {
         const startAt = dayjs(sub.startAt);
         const expireAt = dayjs(sub.expireAt);
@@ -679,28 +614,18 @@ export function createRouter(db: {
           ctx.body = createErrorResponse("流量已耗尽");
           return;
         }
-        totalTraffic = sub.totalTrafficBytes;
       }
 
       const filename = sub.name;
-      const updatedAt = dayjs().format("YYYY-MM-DD HH:mm:ss");
       const webPageUrl = getWebPageUrl(ctx);
 
-      const headerComment = [
-        `info:`,
-        ` id: "${id}"  # 订阅ID`,
-        ` title: "${filename}"  # 标题`,
-        ` website: "${webPageUrl}"  # 网站`,
-        ` source: "${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}"  # 来源`,
-        ` description: "${sub.description || "由 Sub-Proxy 生成的订阅配置"}"  # 描述`,
-        ` upload: 0 # 已上传流量（字节）`,
-        ` download: ${usedTraffic} # 已下载流量（字节）`,
-        ` total: ${totalTraffic} # 总流量（字节）`,
-        ` support: ["clash", "openclash", "clash verge", "shadowrockets"]  # 支持软件`,
-        ` remain_days: "${remainingDays}"  # 剩余天数`,
-        ` expire_time: "${expireTime}"  # 到期时间`,
-        ` last_update: "${updatedAt}"  # 上次更新时间`
-      ].join("\n");
+      const headerComment = buildSubscriptionInfoBlock({
+        sub,
+        websiteUrl: webPageUrl,
+        sourceUrl: `${ctx.request.protocol}://${ctx.request.host}${ctx.request.url}`,
+        now,
+        withComments: true
+      });
 
       const content = `${headerComment}\n\n${
         sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
@@ -737,12 +662,9 @@ export function createRouter(db: {
       }
 
       // 设置订阅头部信息
-      const expireUnix = getExpireUnix(sub.expireAt);
-      const uploadBytes = 0;
-      const downloadBytes = usedTraffic;
       ctx.set(
         "Subscription-Userinfo",
-        `upload=${uploadBytes}; download=${downloadBytes}; total=${totalTraffic}; expire=${expireUnix}`
+        buildSubscriptionUserinfo(sub, usedTraffic)
       );
       ctx.set("Profile-Web-Page-Url", webPageUrl); // 订阅页面
       ctx.set("Profile-Update-Interval", "24"); // 更新间隔（小时）

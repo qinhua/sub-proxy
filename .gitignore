@@ -19,6 +19,7 @@ coverage/
 # Logs
 *.log
 **/tsconfig.tsbuildinfo
+shared/types/src/*.js
 
 # Avatar files
 server/upload/avatar/*
