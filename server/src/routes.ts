@@ -7,6 +7,7 @@ import multer from "multer";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { generateAvatarUrl, fetchProxyNodesFromUrl } from "./utils";
+import { syncProvider } from "./providerSync";
 import { generateVisualYaml } from "./yamlGenerator";
 import { validateVisualConfig } from "./visualConfigValidation";
 import { Subscription, DbSchema } from "./types";
@@ -360,6 +361,7 @@ export function createRouter(db: {
         configMode: parsed.data.configMode || "yaml",
         visualConfig: parsed.data.visualConfig,
         createAt: now,
+        configUpdatedAt: now,
         lastUpdatedAt: now
       };
 
@@ -408,7 +410,8 @@ export function createRouter(db: {
         const sub = db.data.subscriptions.find(s => s.id === id);
         if (sub) {
           sub.pinnedOrder = index;
-          sub.lastUpdatedAt = dayjs().toISOString();
+          sub.configUpdatedAt = dayjs().toISOString();
+          sub.lastUpdatedAt = sub.configUpdatedAt;
         }
       });
 
@@ -450,6 +453,7 @@ export function createRouter(db: {
           db.data.subscriptions[subIndex].configMode ||
           "yaml",
         visualConfig: parsed.data.visualConfig,
+        configUpdatedAt: now,
         lastUpdatedAt: now
       };
 
@@ -504,7 +508,8 @@ export function createRouter(db: {
       return;
     }
     sub.enabled = !sub.enabled;
-    sub.lastUpdatedAt = dayjs().toISOString();
+    sub.configUpdatedAt = dayjs().toISOString();
+    sub.lastUpdatedAt = sub.configUpdatedAt;
     await db.write();
 
     ctx.body = createSuccessResponse(
@@ -540,60 +545,45 @@ export function createRouter(db: {
 
         let fetchCount = 0;
         const failedProviders: { name: string; error: string }[] = [];
-        for (const provider of sub.visualConfig.proxyProviders) {
-          try {
-            if (
-              !provider ||
-              provider.enabled === false ||
-              provider.type !== "url" ||
-              !provider.url
-            ) {
-              continue;
-            }
-            const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
-            provider.fetchedNodes = nodes;
-            provider.lastFetchTime = dayjs().toISOString();
+        for (const [
+          index,
+          provider
+        ] of sub.visualConfig.proxyProviders.entries()) {
+          if (
+            !provider ||
+            provider.enabled === false ||
+            provider.type !== "url" ||
+            !provider.url
+          )
+            continue;
+          if (await syncProvider(provider, ua)) {
             fetchCount++;
-          } catch (error: any) {
-            const errorMessage = error?.message || "未知错误";
+          } else {
             failedProviders.push({
-              name: provider?.name || "未命名订阅源",
-              error: errorMessage
+              name: `来源 ${index + 1}`,
+              error: provider.lastSyncError!
             });
-            console.error(
-              `Fetch failed for provider ${provider?.name || "unknown"}: ${errorMessage}`
-            );
           }
         }
-
-        if (fetchCount > 0) {
-          sub.lastUpdatedAt = dayjs().toISOString();
+        if (fetchCount || failedProviders.length) {
+          sub.lastSyncedAt = dayjs().toISOString();
           await db.write();
-          if (failedProviders.length > 0) {
-            const failedDetail = failedProviders
-              .map(item => `${item.name}: ${item.error}`)
-              .join("；");
-            ctx.body = createSuccessResponse(
-              sub,
-              `成功更新了 ${fetchCount} 个订阅源，失败 ${failedProviders.length} 个。失败详情：${failedDetail}`
-            );
-          } else {
-            ctx.body = createSuccessResponse(
-              sub,
-              `成功更新了 ${fetchCount} 个订阅源的节点`
-            );
-          }
-        } else if (failedProviders.length > 0) {
-          const failedDetail = failedProviders
-            .map(item => `${item.name}: ${item.error}`)
-            .join("；");
+        }
+        const failedDetail = failedProviders
+          .map(item => `${item.name}: ${item.error}`)
+          .join("；");
+        if (fetchCount > 0) {
+          ctx.body = createSuccessResponse(
+            sub,
+            failedProviders.length
+              ? `成功更新了 ${fetchCount} 个订阅源，失败 ${failedProviders.length} 个。${failedDetail}`
+              : `成功更新了 ${fetchCount} 个订阅源的节点`
+          );
+        } else if (failedProviders.length) {
           ctx.status = 400;
           ctx.body = createErrorResponse(`节点拉取失败：${failedDetail}`);
         } else {
-          ctx.body = createSuccessResponse(
-            sub,
-            "没有需要更新的订阅源或更新失败"
-          );
+          ctx.body = createSuccessResponse(sub, "没有需要更新的订阅源");
         }
       } catch (error) {
         console.error("拉取节点错误:", error);
@@ -708,7 +698,7 @@ export function createRouter(db: {
       try {
         const contentLength = Buffer.byteLength(content, "utf8");
         sub.usedTrafficBytes = usedTraffic + contentLength;
-        sub.lastUpdatedAt = dayjs().toISOString();
+        sub.lastDownloadedAt = dayjs().toISOString();
         db.write().catch(err => {
           console.error("更新订阅流量失败:", err);
         });

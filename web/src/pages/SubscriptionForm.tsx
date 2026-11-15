@@ -669,6 +669,43 @@ export function SubscriptionForm() {
                                 移除
                               </Button>
                             </div>
+                            <Form.Item noStyle shouldUpdate>
+                              {({ getFieldValue }) => {
+                                const provider =
+                                  getFieldValue([
+                                    "proxyProviders",
+                                    field.name
+                                  ]) || {};
+                                return (
+                                  <Typography.Paragraph type="secondary">
+                                    {provider.enabled === false ? (
+                                      "已停用"
+                                    ) : provider.type === "content" ? (
+                                      "直接内容，无需网络同步"
+                                    ) : (
+                                      <>
+                                        节点数：
+                                        {provider.fetchedNodes?.length ??
+                                          provider.lastSuccessNodeCount ??
+                                          0}
+                                        ；最近成功：
+                                        {provider.lastFetchTime
+                                          ? dayjs(
+                                              provider.lastFetchTime
+                                            ).format("YYYY-MM-DD HH:mm:ss")
+                                          : "暂无记录"}
+                                        ； 最近同步：
+                                        {provider.lastSyncStatus === "success"
+                                          ? "成功"
+                                          : provider.lastSyncStatus === "failed"
+                                            ? `失败（${provider.lastSyncError || "同步失败"}）`
+                                            : "暂无记录"}
+                                      </>
+                                    )}
+                                  </Typography.Paragraph>
+                                );
+                              }}
+                            </Form.Item>
                             <Row gutter={16}>
                               <Col span={12}>
                                 <Form.Item

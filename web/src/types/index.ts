@@ -18,6 +18,9 @@ export type Subscription = {
   expireAt: string;
   createAt: string;
   lastUpdatedAt: string;
+  configUpdatedAt?: string;
+  lastSyncedAt?: string;
+  lastDownloadedAt?: string;
   yamlConfig: string;
   pinnedOrder?: number; // 置顶顺序，越小越靠前，undefined 表示未置顶
   configMode?: "yaml" | "visual";
@@ -34,6 +37,10 @@ export type Subscription = {
       updateInterval?: number;
       fetchedNodes?: any[];
       lastFetchTime?: string;
+      lastSyncAt?: string;
+      lastSyncStatus?: "success" | "failed";
+      lastSyncError?: string;
+      lastSuccessNodeCount?: number;
     }[];
     ruleProviders?: {
       id?: string;
