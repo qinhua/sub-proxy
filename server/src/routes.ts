@@ -6,7 +6,7 @@ import * as uuid from "uuid";
 import multer from "multer";
 import dayjs from "dayjs";
 import { z } from "zod";
-import { generateAvatarUrl, fetchProxyNodesFromUrl } from "./utils";
+import { generateAvatarUrl } from "./utils";
 import { syncProvider } from "./providerSync";
 import { generateVisualYaml } from "./yamlGenerator";
 import { validateVisualConfig } from "./visualConfigValidation";
@@ -33,6 +33,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isDev = process.env.NODE_ENV === "development";
 const DEFAULT_FETCH_UA = "clash-verge";
 
 function getWebPageUrl(ctx: any) {
@@ -640,7 +641,6 @@ export function createRouter(db: {
       }`;
 
       // 设置响应头 - 根据环境变量设置不同的缓存策略
-      const isDev = process.env.NODE_ENV === "development";
       if (isDev) {
         // 开发环境：不使用任何缓存
         ctx.set(
@@ -977,7 +977,7 @@ export function createRouter(db: {
       ctx.set("Content-Type", "application/json");
       ctx.set(
         "Content-Disposition",
-        `attachment; filename=sub-proxy-backup-${new Date().toISOString().split("T")[0]}.json`
+        `attachment; filename=sub-proxy-backup${isDev ? "@dev" : ""}-${dayjs().format("YYYY-MM-DD")}.json`
       );
       ctx.body = createSuccessResponse(exportData);
     } catch (error) {

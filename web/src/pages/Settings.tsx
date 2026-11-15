@@ -22,6 +22,8 @@ import {
 } from "@ant-design/icons";
 import { api, API_BASE_URL } from "../api";
 import { getSubscriptionBaseUrl } from "../utils/subscriptionUrl";
+import { isDev } from "../utils/environment";
+import dayjs from "dayjs";
 
 export function Settings() {
   // const [loading, setLoading] = useState(false);
@@ -37,7 +39,7 @@ export function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `sub-proxy-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `sub-proxy-backup${isDev ? "@dev" : ""}-${dayjs().format("YYYY-MM-DD")}.json`;
       a.click();
       URL.revokeObjectURL(url);
       message.success("备份已导出");
@@ -114,7 +116,7 @@ export function Settings() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Typography.Text>当前环境：</Typography.Text>
-                    {process.env.NODE_ENV === "development" ? (
+                    {isDev ? (
                       <Tag color="orange">开发环境</Tag>
                     ) : (
                       <Tag color="green">生产环境</Tag>
@@ -200,9 +202,7 @@ export function Settings() {
                   运行环境
                 </Typography.Text>
                 <Typography.Text strong className="block">
-                  {process.env.NODE_ENV === "development"
-                    ? "开发环境"
-                    : "生产环境"}
+                  {isDev ? "开发环境" : "生产环境"}
                 </Typography.Text>
                 <Typography.Text type="secondary" className="text-xs">
                   {navigator.userAgent.includes("Chrome")

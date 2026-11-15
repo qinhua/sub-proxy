@@ -1,5 +1,6 @@
 import { api } from "../api";
 import { useSubscriptionStore } from "../stores/subscriptionStore";
+import { isDev } from "./environment";
 
 /**
  * 初始化订阅基础 URL（在应用启动时调用）
@@ -14,7 +15,7 @@ export async function initializeSubscriptionBaseUrl(): Promise<string> {
 
   try {
     // 生产环境：直接使用当前页面的 origin
-    if (process.env.NODE_ENV !== "development") {
+    if (!isDev) {
       const prodUrl = window.location.origin;
       setBaseUrl(prodUrl);
       return prodUrl;

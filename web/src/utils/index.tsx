@@ -1,7 +1,8 @@
+import { isDev } from "./environment";
+
 export const generateAvatarUrl = (avatar?: string, isFullPath = false) => {
   if (!avatar) return "";
   if (avatar.startsWith("http")) return avatar;
-  const isDev = process.env.NODE_ENV === "development";
   // 开发环境：使用本地地址和实际后端端口，生产环境：使用当前访问的域名和端口
   const curHost = isDev ? "http://localhost:3001" : window.location.origin;
 
