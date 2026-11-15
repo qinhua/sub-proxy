@@ -105,15 +105,30 @@ export function SubscriptionForm() {
     DEFAULT_PROXY_GROUPS_CONFIG
   );
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
+  const [showProviderError, setShowProviderError] = useState(false);
+  const proxyProvidersWatch = Form.useWatch("proxyProviders", form) || [];
+
+  useEffect(() => {
+    if (
+      showProviderError &&
+      (configMode !== "visual" || hasEnabledProvider(proxyProvidersWatch))
+    ) {
+      setShowProviderError(false);
+    }
+  }, [configMode, proxyProvidersWatch, showProviderError]);
+
   const validateProviders = () => {
     if (
       configMode === "visual" &&
       !hasEnabledProvider(form.getFieldValue("proxyProviders") || [])
     ) {
-      message.warning("请至少启用一个机场来源后再保存");
-      document
-        .getElementById("proxy-providers")
-        ?.scrollIntoView({ behavior: "smooth" });
+      setShowProviderError(true);
+      requestAnimationFrame(() => {
+        document.getElementById("proxy-providers-error")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      });
       return false;
     }
     return true;
@@ -378,8 +393,7 @@ export function SubscriptionForm() {
   };
 
   const onFinishFailed = () => {
-    if (!validateProviders()) return;
-    message.error("请检查并补全表单中的必填项");
+    validateProviders();
   };
 
   const previewConfiguration = async (refresh: boolean) => {
@@ -436,10 +450,13 @@ export function SubscriptionForm() {
     } catch (e: any) {
       setLoadingPreview(false);
       if (e?.errorFields) {
-        message.error("请检查并补全表单中的必填项");
-        document
-          .querySelector("#subscription-form")
-          ?.scrollIntoView({ behavior: "smooth" });
+        const firstField = e.errorFields[0]?.name;
+        if (firstField) {
+          form.scrollToField(firstField, {
+            behavior: "smooth",
+            block: "center"
+          });
+        }
         return;
       }
       message.error(e.message || "预览失败");
@@ -939,6 +956,13 @@ export function SubscriptionForm() {
                     </>
                   )}
                 </Form.List>
+                {showProviderError && (
+                  <div id="proxy-providers-error" role="alert" className="mt-2">
+                    <Typography.Text type="danger">
+                      请至少启用一个机场来源后再保存
+                    </Typography.Text>
+                  </div>
+                )}
               </Card>
 
               <Card
