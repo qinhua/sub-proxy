@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import { z } from "zod";
 import { generateAvatarUrl, fetchProxyNodesFromUrl } from "./utils";
 import { generateVisualYaml } from "./yamlGenerator";
+import { validateVisualConfig } from "./visualConfigValidation";
 import { Subscription, DbSchema } from "./types";
 import { fileURLToPath } from "url";
 import {
@@ -136,6 +137,13 @@ export function createRouter(db: {
         createAt: incoming.createAt || dayjs().toISOString(),
         lastUpdatedAt: dayjs().toISOString()
       };
+
+      const visualConfigError = validateVisualConfig(sub);
+      if (visualConfigError) {
+        ctx.status = 400;
+        ctx.body = createErrorResponse(visualConfigError, 400);
+        return;
+      }
 
       if (sub.configMode === "visual" && sub.visualConfig?.proxyProviders) {
         const previewFailedProviders: { name: string; error: string }[] = [];
@@ -355,6 +363,13 @@ export function createRouter(db: {
         lastUpdatedAt: now
       };
 
+      const visualConfigError = validateVisualConfig(newSub);
+      if (visualConfigError) {
+        ctx.status = 400;
+        ctx.body = createErrorResponse(visualConfigError, 400);
+        return;
+      }
+
       db.data.subscriptions.push(newSub);
       await db.write();
 
@@ -437,6 +452,13 @@ export function createRouter(db: {
         visualConfig: parsed.data.visualConfig,
         lastUpdatedAt: now
       };
+
+      const visualConfigError = validateVisualConfig(updatedSub);
+      if (visualConfigError) {
+        ctx.status = 400;
+        ctx.body = createErrorResponse(visualConfigError, 400);
+        return;
+      }
 
       db.data.subscriptions[subIndex] = updatedSub;
       await db.write();
