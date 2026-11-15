@@ -14,7 +14,8 @@ import {
   Col,
   Radio,
   Select,
-  Tag
+  Tag,
+  Alert
 } from "antd";
 import {
   PlusOutlined,
@@ -34,6 +35,11 @@ import Editor from "@monaco-editor/react";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "../api";
 import dayjs from "dayjs";
+import {
+  hasEnabledProvider,
+  needsProviderSync,
+  saveThenSync
+} from "../utils/subscriptionSave";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const PROXY_GROUPS_MARKER = "# ================= 代理组配置 =================";
@@ -99,6 +105,22 @@ export function SubscriptionForm() {
     DEFAULT_PROXY_GROUPS_CONFIG
   );
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
+  const proxyProvidersWatch =
+    Form.useWatch("proxyProviders", { form, preserve: true }) || [];
+  const providerError =
+    configMode === "visual" && !hasEnabledProvider(proxyProvidersWatch);
+  const validateProviders = () => {
+    if (
+      configMode === "visual" &&
+      !hasEnabledProvider(form.getFieldValue("proxyProviders") || [])
+    ) {
+      document
+        .getElementById("proxy-providers")
+        ?.scrollIntoView({ behavior: "smooth" });
+      return false;
+    }
+    return true;
+  };
   const ruleProvidersWatch = Form.useWatch("ruleProviders", form) || [];
 
   const requireEnabledProviderValue = (
@@ -315,44 +337,40 @@ export function SubscriptionForm() {
   };
 
   const submitSubscription = async () => {
+    if (!validateProviders()) return;
     setLoading(true);
     try {
       const values = form.getFieldsValue(true);
       const payload = buildPayload(values);
-      let savedId = params.id as string;
-
-      if (isEdit) {
-        await api.updateSub(savedId, payload);
-      } else {
-        const created = await api.createSub(payload as any);
-        savedId = created.data?.id || "";
-      }
-
-      const hasActiveUrlProvider =
-        configMode === "visual" &&
-        (values.proxyProviders || []).some(
-          (provider: any) =>
-            provider?.enabled !== false &&
-            provider?.type === "url" &&
-            provider?.url?.trim()
+      const outcome = await saveThenSync(
+        async () => {
+          if (isEdit) {
+            await api.updateSub(params.id as string, payload);
+            return params.id as string;
+          }
+          const created = await api.createSub(payload as any);
+          return created.data?.id || "";
+        },
+        api.fetchNodes,
+        needsProviderSync(configMode, values.proxyProviders || [])
+      );
+      if (outcome === "failed") {
+        message.warning(
+          "配置已保存，但来源同步失败，可在订阅列表点击“立即同步”重试"
         );
-      if (hasActiveUrlProvider) {
-        if (!savedId) {
-          throw new Error("未获取到订阅ID，无法拉取节点");
-        }
-        const fetchResult = await api.fetchNodes(savedId);
+      } else if (outcome === "partial") {
+        message.warning(
+          "配置已保存，但部分来源同步失败，可在订阅列表点击“立即同步”重试"
+        );
+      } else {
         message.success(
-          fetchResult.message ||
-            (isEdit ? "已保存并自动拉取节点" : "已创建并自动拉取节点")
+          outcome === "synced" ? "配置已保存，来源同步成功" : "配置已保存"
         );
-      } else {
-        message.success(isEdit ? "已保存" : "已创建");
       }
 
       navigate("/");
     } catch (e: any) {
       message.error(e.response?.data?.message || e.message || "保存失败");
-      throw e;
     } finally {
       setLoading(false);
     }
@@ -401,9 +419,9 @@ export function SubscriptionForm() {
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
-                  label="节点名称"
+                  label="订阅名称"
                   name="name"
-                  rules={[{ required: true, message: "请输入节点名称" }]}
+                  rules={[{ required: true, message: "请输入订阅名称" }]}
                 >
                   <Input
                     placeholder="例如：自用节点A"
@@ -628,12 +646,21 @@ export function SubscriptionForm() {
 
               <Card
                 size="small"
+                id="proxy-providers"
                 title="机场节点 (Proxy Providers)"
                 className="mb-6"
               >
                 <Typography.Paragraph type="secondary">
                   可以配置多个机场节点。关闭的节点会保留配置，但不会被拉取或加入订阅。保存时会立即拉取已启用的订阅链接，之后按更新间隔自动刷新。
                 </Typography.Paragraph>
+                {providerError && (
+                  <Alert
+                    type="error"
+                    showIcon
+                    message="请至少启用一个机场来源后再保存或预览"
+                    className="mb-4"
+                  />
+                )}
                 <Form.List name="proxyProviders">
                   {(fields, { add, remove }) => (
                     <>
@@ -1138,9 +1165,11 @@ export function SubscriptionForm() {
               size="large"
               loading={loadingPreview}
               onClick={async () => {
+                if (!validateProviders()) return;
                 try {
                   setLoadingPreview(true);
-                  const values = await form.validateFields();
+                  await form.validateFields();
+                  const values = form.getFieldsValue(true);
                   const payload = buildPayload(values);
                   const resp = await api.previewSub(payload);
                   const content = resp.data?.content || "";
@@ -1174,8 +1203,8 @@ export function SubscriptionForm() {
                   });
                 } catch (e: any) {
                   setLoadingPreview(false);
-                  if (!e?.values.name.trim()) {
-                    message.error("请输入节点名称！");
+                  if (e?.errorFields) {
+                    message.error("请检查并补全表单中的必填项");
                     document
                       .querySelector("#subscription-form")
                       ?.scrollIntoView({ behavior: "smooth" });
