@@ -72,6 +72,9 @@ export interface Subscription {
   expireAt: string;
   createAt: string;
   lastUpdatedAt: string;
+  configUpdatedAt?: string;
+  lastSyncedAt?: string;
+  lastDownloadedAt?: string;
   usedTrafficBytes?: number;
   yamlConfig: string;
   pinnedOrder?: number;
@@ -89,6 +92,10 @@ export interface Subscription {
       updateInterval?: number;
       fetchedNodes?: any[];
       lastFetchTime?: string;
+      lastSyncAt?: string;
+      lastSyncStatus?: "success" | "failed";
+      lastSyncError?: string;
+      lastSuccessNodeCount?: number;
     }[];
     ruleProviders?: {
       id?: string;

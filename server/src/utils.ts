@@ -22,7 +22,7 @@ export async function fetchProxyNodesFromUrl(
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch from ${url}: ${response.statusText}`);
+      throw new Error(`订阅源返回 HTTP ${response.status}`);
     }
 
     const text = await response.text();
@@ -31,10 +31,16 @@ export async function fetchProxyNodesFromUrl(
       return nodes;
     }
 
-    throw new Error("Invalid Clash configuration format received from URL.");
+    throw new Error("订阅源未返回有效节点");
   } catch (error) {
-    console.error("fetchProxyNodesFromUrl error:", error);
-    throw error;
+    if (
+      error instanceof Error &&
+      /^(订阅源返回 HTTP \d{3}|订阅源未返回有效节点)$/.test(error.message)
+    )
+      throw error;
+    throw new Error(
+      controller.signal.aborted ? "订阅源请求超时" : "网络请求失败，请稍后重试"
+    );
   } finally {
     clearTimeout(timeout);
   }

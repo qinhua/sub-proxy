@@ -14,7 +14,8 @@ import {
   Col,
   Radio,
   Select,
-  Tag
+  Tag,
+  Alert
 } from "antd";
 import {
   PlusOutlined,
@@ -34,6 +35,11 @@ import Editor from "@monaco-editor/react";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "../api";
 import dayjs from "dayjs";
+import {
+  hasEnabledProvider,
+  needsProviderSync,
+  saveThenSync
+} from "../utils/subscriptionSave";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const PROXY_GROUPS_MARKER = "# ================= 代理组配置 =================";
@@ -99,6 +105,34 @@ export function SubscriptionForm() {
     DEFAULT_PROXY_GROUPS_CONFIG
   );
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
+  const [showProviderError, setShowProviderError] = useState(false);
+  const proxyProvidersWatch = Form.useWatch("proxyProviders", form) || [];
+
+  useEffect(() => {
+    if (
+      showProviderError &&
+      (configMode !== "visual" || hasEnabledProvider(proxyProvidersWatch))
+    ) {
+      setShowProviderError(false);
+    }
+  }, [configMode, proxyProvidersWatch, showProviderError]);
+
+  const validateProviders = () => {
+    if (
+      configMode === "visual" &&
+      !hasEnabledProvider(form.getFieldValue("proxyProviders") || [])
+    ) {
+      setShowProviderError(true);
+      requestAnimationFrame(() => {
+        document.getElementById("proxy-providers-error")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      });
+      return false;
+    }
+    return true;
+  };
   const ruleProvidersWatch = Form.useWatch("ruleProviders", form) || [];
 
   const requireEnabledProviderValue = (
@@ -315,44 +349,40 @@ export function SubscriptionForm() {
   };
 
   const submitSubscription = async () => {
+    if (!validateProviders()) return;
     setLoading(true);
     try {
       const values = form.getFieldsValue(true);
       const payload = buildPayload(values);
-      let savedId = params.id as string;
-
-      if (isEdit) {
-        await api.updateSub(savedId, payload);
-      } else {
-        const created = await api.createSub(payload as any);
-        savedId = created.data?.id || "";
-      }
-
-      const hasActiveUrlProvider =
-        configMode === "visual" &&
-        (values.proxyProviders || []).some(
-          (provider: any) =>
-            provider?.enabled !== false &&
-            provider?.type === "url" &&
-            provider?.url?.trim()
+      const outcome = await saveThenSync(
+        async () => {
+          if (isEdit) {
+            await api.updateSub(params.id as string, payload);
+            return params.id as string;
+          }
+          const created = await api.createSub(payload as any);
+          return created.data?.id || "";
+        },
+        api.fetchNodes,
+        needsProviderSync(configMode, values.proxyProviders || [])
+      );
+      if (outcome === "failed") {
+        message.warning(
+          "配置已保存，但来源同步失败，可在订阅列表点击“立即同步”重试"
         );
-      if (hasActiveUrlProvider) {
-        if (!savedId) {
-          throw new Error("未获取到订阅ID，无法拉取节点");
-        }
-        const fetchResult = await api.fetchNodes(savedId);
+      } else if (outcome === "partial") {
+        message.warning(
+          "配置已保存，但部分来源同步失败，可在订阅列表点击“立即同步”重试"
+        );
+      } else {
         message.success(
-          fetchResult.message ||
-            (isEdit ? "已保存并自动拉取节点" : "已创建并自动拉取节点")
+          outcome === "synced" ? "配置已保存，来源同步成功" : "配置已保存"
         );
-      } else {
-        message.success(isEdit ? "已保存" : "已创建");
       }
 
       navigate("/");
     } catch (e: any) {
       message.error(e.response?.data?.message || e.message || "保存失败");
-      throw e;
     } finally {
       setLoading(false);
     }
@@ -360,6 +390,77 @@ export function SubscriptionForm() {
 
   const onFinish = async () => {
     await submitSubscription();
+  };
+
+  const onFinishFailed = () => {
+    validateProviders();
+  };
+
+  const previewConfiguration = async (refresh: boolean) => {
+    try {
+      setLoadingPreview(true);
+      await form.validateFields();
+      const values = form.getFieldsValue(true);
+      const payload = buildPayload(values);
+      const resp = await api.previewSub(payload, "clash-verge", refresh);
+      const content = resp.data?.content || "";
+      setLoadingPreview(false);
+      modal.info({
+        title: refresh ? "最终配置预览" : "当前配置预览",
+        width: 900,
+        closable: true,
+        maskClosable: true,
+        okText: "关闭",
+        content: (
+          <>
+            {(resp.data?.failedProviders || []).length > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                className="mb-3"
+                message="部分来源刷新失败，以下来源使用已有缓存（无缓存时不包含节点）"
+                description={resp
+                  .data!.failedProviders.map(
+                    item => `${item.name}：${item.error}`
+                  )
+                  .join("；")}
+              />
+            )}
+            <div
+              style={{
+                border: "1px solid #eee",
+                borderRadius: 8,
+                overflow: "hidden"
+              }}
+            >
+              <Editor
+                height="600px"
+                theme="vs-dark"
+                defaultLanguage="yaml"
+                value={content}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false }
+                }}
+              />
+            </div>
+          </>
+        )
+      });
+    } catch (e: any) {
+      setLoadingPreview(false);
+      if (e?.errorFields) {
+        const firstField = e.errorFields[0]?.name;
+        if (firstField) {
+          form.scrollToField(firstField, {
+            behavior: "smooth",
+            block: "center"
+          });
+        }
+        return;
+      }
+      message.error(e.message || "预览失败");
+    }
   };
 
   return (
@@ -385,6 +486,8 @@ export function SubscriptionForm() {
           form={form}
           layout="vertical"
           onFinish={onFinish}
+          onFinishFailed={onFinishFailed}
+          scrollToFirstError={{ behavior: "smooth", block: "center" }}
           initialValues={{
             enabled: true,
             name: "",
@@ -401,9 +504,9 @@ export function SubscriptionForm() {
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
-                  label="节点名称"
+                  label="订阅名称"
                   name="name"
-                  rules={[{ required: true, message: "请输入节点名称" }]}
+                  rules={[{ required: true, message: "请输入订阅名称" }]}
                 >
                   <Input
                     placeholder="例如：自用节点A"
@@ -628,6 +731,7 @@ export function SubscriptionForm() {
 
               <Card
                 size="small"
+                id="proxy-providers"
                 title="机场节点 (Proxy Providers)"
                 className="mb-6"
               >
@@ -669,6 +773,43 @@ export function SubscriptionForm() {
                                 移除
                               </Button>
                             </div>
+                            <Form.Item noStyle shouldUpdate>
+                              {({ getFieldValue }) => {
+                                const provider =
+                                  getFieldValue([
+                                    "proxyProviders",
+                                    field.name
+                                  ]) || {};
+                                return (
+                                  <Typography.Paragraph type="secondary">
+                                    {provider.enabled === false ? (
+                                      "已停用"
+                                    ) : provider.type === "content" ? (
+                                      "直接内容，无需网络同步"
+                                    ) : (
+                                      <>
+                                        节点数：
+                                        {provider.fetchedNodes?.length ??
+                                          provider.lastSuccessNodeCount ??
+                                          0}
+                                        ；最近成功：
+                                        {provider.lastFetchTime
+                                          ? dayjs(
+                                              provider.lastFetchTime
+                                            ).format("YYYY-MM-DD HH:mm:ss")
+                                          : "暂无记录"}
+                                        ； 最近同步：
+                                        {provider.lastSyncStatus === "success"
+                                          ? "成功"
+                                          : provider.lastSyncStatus === "failed"
+                                            ? `失败（${provider.lastSyncError || "同步失败"}）`
+                                            : "暂无记录"}
+                                      </>
+                                    )}
+                                  </Typography.Paragraph>
+                                );
+                              }}
+                            </Form.Item>
                             <Row gutter={16}>
                               <Col span={12}>
                                 <Form.Item
@@ -815,6 +956,13 @@ export function SubscriptionForm() {
                     </>
                   )}
                 </Form.List>
+                {showProviderError && (
+                  <div id="proxy-providers-error" role="alert" className="mt-2">
+                    <Typography.Text type="danger">
+                      请至少启用一个机场来源后再保存
+                    </Typography.Text>
+                  </div>
+                )}
               </Card>
 
               <Card
@@ -1095,74 +1243,39 @@ export function SubscriptionForm() {
           )}
 
           {/* 操作按钮 */}
-          {/* <Card className="fixed bottom-0 left-0 right-0 rounded-none"> */}
-          <div className="flex justify-end space-x-4">
-            <Button
-              size="large"
-              loading={loadingPreview}
-              onClick={async () => {
-                try {
-                  setLoadingPreview(true);
-                  const values = await form.validateFields();
-                  const payload = buildPayload(values);
-                  const resp = await api.previewSub(payload);
-                  const content = resp.data?.content || "";
-                  setLoadingPreview(false);
-                  modal.info({
-                    title: "完整配置预览",
-                    width: 900,
-                    closable: true,
-                    maskClosable: true,
-                    okText: "关闭",
-                    content: (
-                      <div
-                        style={{
-                          border: "1px solid #eee",
-                          borderRadius: 8,
-                          overflow: "hidden"
-                        }}
-                      >
-                        <Editor
-                          height="600px"
-                          theme="vs-dark"
-                          defaultLanguage="yaml"
-                          value={content}
-                          options={{
-                            readOnly: true,
-                            minimap: { enabled: false }
-                          }}
-                        />
-                      </div>
-                    )
-                  });
-                } catch (e: any) {
-                  setLoadingPreview(false);
-                  if (!e?.values.name.trim()) {
-                    message.error("请输入节点名称！");
-                    document
-                      .querySelector("#subscription-form")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                    return;
-                  }
-                  message.error(e.message || "预览失败");
-                }
-              }}
-            >
-              {loadingPreview ? "配置生成中..." : "预览完整配置"}
-            </Button>
-            <Button size="large" onClick={() => navigate("/")}>
-              取消
-            </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              size="large"
-            >
-              {isEdit ? "保存更改" : "创建订阅"}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <Space>
+              <Button
+                size="large"
+                loading={loadingPreview}
+                onClick={() => previewConfiguration(false)}
+              >
+                当前配置预览
+              </Button>
+              {configMode === "visual" && (
+                <Button
+                  size="large"
+                  loading={loadingPreview}
+                  onClick={() => previewConfiguration(true)}
+                >
+                  最终配置预览
+                </Button>
+              )}
+            </Space>
+            <Space>
+              <Button size="large" onClick={() => navigate("/")}>
+                取消
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                size="large"
+              >
+                {isEdit ? "保存更改" : "创建订阅"}
+              </Button>
+            </Space>
           </div>
-          {/* </Card> */}
         </Form>
       </Card>
     </div>

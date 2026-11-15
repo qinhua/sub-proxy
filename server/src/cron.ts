@@ -1,65 +1,46 @@
 import { DbSchema } from "./types";
-import { fetchProxyNodesFromUrl } from "./utils";
+import { syncProvider } from "./providerSync";
 import dayjs from "dayjs";
+
+export async function runPeriodicFetch(db: {
+  data: DbSchema;
+  write: () => Promise<void>;
+}) {
+  let needsSave = false;
+  for (const sub of db.data.subscriptions) {
+    if (!sub.enabled || sub.configMode !== "visual") continue;
+    for (const provider of sub.visualConfig?.proxyProviders || []) {
+      if (
+        provider.enabled === false ||
+        provider.type !== "url" ||
+        !provider.url ||
+        !provider.updateInterval
+      )
+        continue;
+      const lastAttempt = provider.lastSyncAt || provider.lastFetchTime;
+      if (
+        lastAttempt &&
+        !dayjs().isAfter(
+          dayjs(lastAttempt).add(provider.updateInterval, "hour")
+        )
+      )
+        continue;
+      await syncProvider(provider);
+      sub.lastSyncedAt = provider.lastSyncAt;
+      needsSave = true;
+    }
+  }
+  if (needsSave) await db.write();
+}
 
 export function startPeriodicFetch(db: {
   data: DbSchema;
   write: () => Promise<void>;
 }) {
-  // Check every hour
   setInterval(
-    async () => {
-      try {
-        let needsSave = false;
-
-        for (const sub of db.data.subscriptions) {
-          if (
-            sub.enabled &&
-            sub.configMode === "visual" &&
-            sub.visualConfig?.proxyProviders
-          ) {
-            for (const provider of sub.visualConfig.proxyProviders) {
-              if (
-                provider.enabled !== false &&
-                provider.type === "url" &&
-                provider.url &&
-                provider.updateInterval
-              ) {
-                const lastFetch = provider.lastFetchTime
-                  ? dayjs(provider.lastFetchTime)
-                  : null;
-                const nextFetch = lastFetch
-                  ? lastFetch.add(provider.updateInterval, "hour")
-                  : dayjs().subtract(1, "minute");
-
-                if (dayjs().isAfter(nextFetch)) {
-                  try {
-                    console.log(
-                      `Periodic fetch for provider ${provider.name} in sub ${sub.name}`
-                    );
-                    const nodes = await fetchProxyNodesFromUrl(provider.url);
-                    provider.fetchedNodes = nodes;
-                    provider.lastFetchTime = dayjs().toISOString();
-                    needsSave = true;
-                  } catch (error: any) {
-                    console.error(
-                      `Periodic fetch failed for provider ${provider.name}: ${error.message}`
-                    );
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        if (needsSave) {
-          await db.write();
-          console.log("Periodic fetch completed and saved to DB.");
-        }
-      } catch (e) {
-        console.error("Error in periodic fetch loop:", e);
-      }
+    () => {
+      runPeriodicFetch(db).catch(() => console.error("定时同步保存失败"));
     },
     1000 * 60 * 60
-  ); // 1 hour
+  );
 }

@@ -571,12 +571,15 @@ export function SubscriptionList() {
               }
             },
             {
-              title: "更新时间",
+              title: "配置更新时间",
               dataIndex: "lastUpdatedAt",
               width: 200,
               align: "center",
               render: (_: any, record: Subscription) => {
-                const time = record.lastUpdatedAt;
+                const time =
+                  record.configUpdatedAt ||
+                  record.lastUpdatedAt ||
+                  record.createAt;
                 return (
                   <Tooltip title={dayjs(time).format("YYYY-MM-DD HH:mm:ss")}>
                     <Typography.Text type="secondary">
@@ -627,8 +630,45 @@ function RowActions({
   pinnedIds: string[];
   onTogglePin: (id: string) => void;
 }) {
+  const [syncing, setSyncing] = useState(false);
+  const canSync =
+    sub.configMode === "visual" &&
+    sub.visualConfig?.proxyProviders?.some(
+      provider =>
+        provider.enabled !== false && provider.type === "url" && provider.url
+    );
   return (
     <Space direction="vertical" size={0} style={{ alignItems: "flex-end" }}>
+      {canSync && (
+        <Button
+          type="link"
+          size="small"
+          icon={<ReloadOutlined />}
+          loading={syncing}
+          onClick={async () => {
+            setSyncing(true);
+            try {
+              const result = await api.fetchNodes(sub.id);
+              const providers = result.data?.visualConfig?.proxyProviders || [];
+              const failed = providers.some(
+                (provider: any) =>
+                  provider.enabled !== false &&
+                  provider.type === "url" &&
+                  provider.lastSyncStatus === "failed"
+              );
+              if (failed) message.warning(result.message);
+              else message.success(result.message);
+            } catch (error: any) {
+              message.error(error.message || "同步失败");
+            } finally {
+              await onChanged();
+              setSyncing(false);
+            }
+          }}
+        >
+          立即同步
+        </Button>
+      )}
       <Space size={4}>
         <Tooltip
           title={pinnedIds.includes(sub.id) ? "取消置顶" : "置顶（最多3个）"}
