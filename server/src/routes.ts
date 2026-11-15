@@ -141,7 +141,7 @@ export function createRouter(db: {
         lastUpdatedAt: dayjs().toISOString()
       };
 
-      const visualConfigError = validateVisualConfig(sub);
+      const visualConfigError = validateVisualConfig(sub, false);
       if (visualConfigError) {
         ctx.status = 400;
         ctx.body = createErrorResponse(visualConfigError, 400);

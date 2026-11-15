@@ -105,15 +105,12 @@ export function SubscriptionForm() {
     DEFAULT_PROXY_GROUPS_CONFIG
   );
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
-  const proxyProvidersWatch =
-    Form.useWatch("proxyProviders", { form, preserve: true }) || [];
-  const providerError =
-    configMode === "visual" && !hasEnabledProvider(proxyProvidersWatch);
   const validateProviders = () => {
     if (
       configMode === "visual" &&
       !hasEnabledProvider(form.getFieldValue("proxyProviders") || [])
     ) {
+      message.warning("请至少启用一个机场来源后再保存");
       document
         .getElementById("proxy-providers")
         ?.scrollIntoView({ behavior: "smooth" });
@@ -380,8 +377,12 @@ export function SubscriptionForm() {
     await submitSubscription();
   };
 
-  const previewConfiguration = async (refresh: boolean) => {
+  const onFinishFailed = () => {
     if (!validateProviders()) return;
+    message.error("请检查并补全表单中的必填项");
+  };
+
+  const previewConfiguration = async (refresh: boolean) => {
     try {
       setLoadingPreview(true);
       await form.validateFields();
@@ -468,6 +469,8 @@ export function SubscriptionForm() {
           form={form}
           layout="vertical"
           onFinish={onFinish}
+          onFinishFailed={onFinishFailed}
+          scrollToFirstError={{ behavior: "smooth", block: "center" }}
           initialValues={{
             enabled: true,
             name: "",
@@ -718,14 +721,6 @@ export function SubscriptionForm() {
                 <Typography.Paragraph type="secondary">
                   可以配置多个机场节点。关闭的节点会保留配置，但不会被拉取或加入订阅。保存时会立即拉取已启用的订阅链接，之后按更新间隔自动刷新。
                 </Typography.Paragraph>
-                {providerError && (
-                  <Alert
-                    type="error"
-                    showIcon
-                    message="请至少启用一个机场来源后再保存或预览"
-                    className="mb-4"
-                  />
-                )}
                 <Form.List name="proxyProviders">
                   {(fields, { add, remove }) => (
                     <>

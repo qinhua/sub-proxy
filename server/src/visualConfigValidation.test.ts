@@ -13,12 +13,11 @@ const body = {
   visualConfig: { proxyProviders: [] }
 };
 
-test("create, update and preview reject zero enabled providers without writes", async () => {
+test("create and update reject zero enabled providers without writes", async () => {
   for (const providers of [[], [{ enabled: false }]]) {
     for (const [method, path] of [
       ["POST", "/api/subscription"],
-      ["PUT", "/api/subscription/:id"],
-      ["POST", "/api/subscription/preview"]
+      ["PUT", "/api/subscription/:id"]
     ]) {
       const original = {
         ...body,
@@ -81,6 +80,20 @@ test("validation accepts legacy enabled sources and incomplete disabled sources"
     undefined
   );
   assert.equal(validateVisualConfig({ configMode: "yaml" }), undefined);
+  assert.equal(
+    validateVisualConfig(
+      { configMode: "visual", visualConfig: { proxyProviders: [] } },
+      false
+    ),
+    undefined
+  );
+  assert.equal(
+    validateVisualConfig(
+      { configMode: "visual", visualConfig: { proxyProviders: {} as any } },
+      false
+    ),
+    "机场来源格式无效"
+  );
 });
 
 test("validation rejects incomplete enabled sources and malformed node content", () => {

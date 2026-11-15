@@ -3,6 +3,35 @@ import test from "node:test";
 import { createRouter } from "./routes";
 import type { Subscription, DbSchema } from "./types";
 
+test("preview without enabled providers remains available without saving", async () => {
+  const sub = {
+    name: "empty preview",
+    configMode: "visual",
+    visualConfig: { proxyProviders: [{ enabled: false }] }
+  } as Subscription;
+  let writes = 0;
+  const db = {
+    data: { subscriptions: [], users: [], settings: {} } as DbSchema,
+    write: async () => {
+      writes++;
+    }
+  };
+  const route = createRouter(db).stack.find(
+    item => item.path === "/api/subscription/preview"
+  )!;
+  const ctx: any = {
+    request: { body: sub, protocol: "http", host: "localhost" },
+    query: {}
+  };
+
+  await route.stack.at(-1)!(ctx, async () => {});
+
+  assert.equal(ctx.body.success, true);
+  assert.match(ctx.body.data.content, /DIRECT/);
+  assert.equal(writes, 0);
+  assert.equal(db.data.subscriptions.length, 0);
+});
+
 for (const refresh of [false, true]) {
   test(`${refresh ? "refresh" : "cached"} preview is isolated and reports source failures`, async () => {
     const originalFetch = globalThis.fetch;

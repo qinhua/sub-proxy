@@ -2,12 +2,19 @@ import YAML from "yaml";
 import { Subscription } from "./types";
 
 export function validateVisualConfig(
-  sub: Pick<Subscription, "configMode" | "visualConfig">
+  sub: Pick<Subscription, "configMode" | "visualConfig">,
+  requireEnabledProvider = true
 ): string | undefined {
   if (sub.configMode !== "visual") return;
   const providers = sub.visualConfig?.proxyProviders;
+  if (!Array.isArray(providers)) {
+    if (!requireEnabledProvider && providers == null) return;
+    return requireEnabledProvider
+      ? "请至少启用一个机场来源"
+      : "机场来源格式无效";
+  }
   if (
-    !Array.isArray(providers) ||
+    requireEnabledProvider &&
     !providers.some(p => p && p.enabled !== false)
   ) {
     return "请至少启用一个机场来源";
