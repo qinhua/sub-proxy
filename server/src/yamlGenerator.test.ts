@@ -3,6 +3,34 @@ import test from "node:test";
 import YAML from "yaml";
 import { generateVisualYaml } from "./yamlGenerator";
 import type { Subscription } from "./types";
+import {
+  DEFAULT_BASE_CONFIG,
+  DEFAULT_PROXY_GROUPS_CONFIG,
+  DEFAULT_RULES
+} from "../../web/src/constants/index";
+
+test("default template has no dangling optional groups before URL nodes are cached", () => {
+  const sub = {
+    configMode: "visual",
+    visualConfig: {
+      baseConfig: DEFAULT_BASE_CONFIG,
+      proxyGroupsConfig: DEFAULT_PROXY_GROUPS_CONFIG,
+      rules: DEFAULT_RULES,
+      proxyProviders: [
+        { name: "pending", type: "url", enabled: true, url: "https://example.test" }
+      ]
+    }
+  } as Subscription;
+  const doc = YAML.parse(generateVisualYaml(sub));
+  const groups = doc["proxy-groups"];
+  const available = new Set(["DIRECT", ...groups.map((g: any) => g.name)]);
+  for (const group of groups) {
+    assert.ok(group.proxies.length > 0);
+    for (const target of group.proxies) assert.ok(available.has(target), target);
+  }
+  assert.deepEqual(groups.find((g: any) => g.name === "🔧 手动选择").proxies, ["DIRECT"]);
+  assert.ok(groups.find((g: any) => g.name === "🌏 国外通用").proxies.includes("DIRECT"));
+});
 
 test("visual YAML includes enabled providers and keeps legacy providers enabled", () => {
   const sub = {

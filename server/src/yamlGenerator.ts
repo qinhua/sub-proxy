@@ -201,6 +201,20 @@ export function generateVisualYaml(sub: Subscription): string {
     }
   }
 
+  // 默认模板引用的可选分组可能尚未生成，保留直连作为可用回退。
+  const availableTargets = new Set([
+    ...finalDoc.proxies.map((node: any) => node.name),
+    ...finalDoc["proxy-groups"].map((group: any) => group.name)
+  ]);
+  const optionalGroupNames = new Set([AUTO_SELECT_GROUP_NAME, "🏠 美国住宅"]);
+  for (const group of finalDoc["proxy-groups"]) {
+    if (!Array.isArray(group.proxies)) continue;
+    group.proxies = group.proxies.filter(
+      (name: string) => !optionalGroupNames.has(name) || availableTargets.has(name)
+    );
+    if (group.proxies.length === 0) group.proxies = ["DIRECT"];
+  }
+
   if (
     finalDoc["rule-providers"] &&
     typeof finalDoc["rule-providers"] === "object" &&
