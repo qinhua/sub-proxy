@@ -20,6 +20,7 @@ export function startPeriodicFetch(db: {
           ) {
             for (const provider of sub.visualConfig.proxyProviders) {
               if (
+                provider.enabled !== false &&
                 provider.type === "url" &&
                 provider.url &&
                 provider.updateInterval

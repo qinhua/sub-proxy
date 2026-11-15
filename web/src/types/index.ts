@@ -27,10 +27,13 @@ export type Subscription = {
     proxyProviders?: {
       id: string;
       name: string;
+      enabled?: boolean;
       type: "url" | "content";
       url?: string;
       content?: string;
       updateInterval?: number;
+      fetchedNodes?: any[];
+      lastFetchTime?: string;
     }[];
     ruleProviders?: {
       id?: string;
