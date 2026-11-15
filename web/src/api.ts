@@ -151,9 +151,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data)
     }),
-  previewSub: (payload: Partial<Subscription>, ua = "clash-verge") =>
-    request<ApiResponse<{ content: string }>>(
-      `/api/subscription/preview?ua=${encodeURIComponent(ua)}`,
+  previewSub: (
+    payload: Partial<Subscription>,
+    ua = "clash-verge",
+    refresh = false
+  ) =>
+    request<
+      ApiResponse<{
+        content: string;
+        failedProviders: { name: string; error: string }[];
+      }>
+    >(
+      `/api/subscription/preview?ua=${encodeURIComponent(ua)}&refresh=${refresh}`,
       {
         method: "POST",
         body: JSON.stringify(payload)

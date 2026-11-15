@@ -380,6 +380,71 @@ export function SubscriptionForm() {
     await submitSubscription();
   };
 
+  const previewConfiguration = async (refresh: boolean) => {
+    if (!validateProviders()) return;
+    try {
+      setLoadingPreview(true);
+      await form.validateFields();
+      const values = form.getFieldsValue(true);
+      const payload = buildPayload(values);
+      const resp = await api.previewSub(payload, "clash-verge", refresh);
+      const content = resp.data?.content || "";
+      setLoadingPreview(false);
+      modal.info({
+        title: refresh ? "刷新后预览" : "当前配置预览",
+        width: 900,
+        closable: true,
+        maskClosable: true,
+        okText: "关闭",
+        content: (
+          <>
+            {(resp.data?.failedProviders || []).length > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                className="mb-3"
+                message="部分来源刷新失败，以下来源使用已有缓存（无缓存时不包含节点）"
+                description={resp
+                  .data!.failedProviders.map(
+                    item => `${item.name}：${item.error}`
+                  )
+                  .join("；")}
+              />
+            )}
+            <div
+              style={{
+                border: "1px solid #eee",
+                borderRadius: 8,
+                overflow: "hidden"
+              }}
+            >
+              <Editor
+                height="600px"
+                theme="vs-dark"
+                defaultLanguage="yaml"
+                value={content}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false }
+                }}
+              />
+            </div>
+          </>
+        )
+      });
+    } catch (e: any) {
+      setLoadingPreview(false);
+      if (e?.errorFields) {
+        message.error("请检查并补全表单中的必填项");
+        document
+          .querySelector("#subscription-form")
+          ?.scrollIntoView({ behavior: "smooth" });
+        return;
+      }
+      message.error(e.message || "预览失败");
+    }
+  };
+
   return (
     <div className="max-w px-6 py-4">
       <Card
@@ -1164,58 +1229,19 @@ export function SubscriptionForm() {
             <Button
               size="large"
               loading={loadingPreview}
-              onClick={async () => {
-                if (!validateProviders()) return;
-                try {
-                  setLoadingPreview(true);
-                  await form.validateFields();
-                  const values = form.getFieldsValue(true);
-                  const payload = buildPayload(values);
-                  const resp = await api.previewSub(payload);
-                  const content = resp.data?.content || "";
-                  setLoadingPreview(false);
-                  modal.info({
-                    title: "完整配置预览",
-                    width: 900,
-                    closable: true,
-                    maskClosable: true,
-                    okText: "关闭",
-                    content: (
-                      <div
-                        style={{
-                          border: "1px solid #eee",
-                          borderRadius: 8,
-                          overflow: "hidden"
-                        }}
-                      >
-                        <Editor
-                          height="600px"
-                          theme="vs-dark"
-                          defaultLanguage="yaml"
-                          value={content}
-                          options={{
-                            readOnly: true,
-                            minimap: { enabled: false }
-                          }}
-                        />
-                      </div>
-                    )
-                  });
-                } catch (e: any) {
-                  setLoadingPreview(false);
-                  if (e?.errorFields) {
-                    message.error("请检查并补全表单中的必填项");
-                    document
-                      .querySelector("#subscription-form")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                    return;
-                  }
-                  message.error(e.message || "预览失败");
-                }
-              }}
+              onClick={() => previewConfiguration(false)}
             >
-              {loadingPreview ? "配置生成中..." : "预览完整配置"}
+              当前配置预览
             </Button>
+            {configMode === "visual" && (
+              <Button
+                size="large"
+                loading={loadingPreview}
+                onClick={() => previewConfiguration(true)}
+              >
+                刷新来源后预览
+              </Button>
+            )}
             <Button size="large" onClick={() => navigate("/")}>
               取消
             </Button>

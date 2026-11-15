@@ -134,7 +134,9 @@ export function createRouter(db: {
         expireAt: incoming.expireAt || "",
         yamlConfig: incoming.yamlConfig || "",
         configMode: incoming.configMode || "yaml",
-        visualConfig: incoming.visualConfig,
+        visualConfig: incoming.visualConfig
+          ? structuredClone(incoming.visualConfig)
+          : undefined,
         createAt: incoming.createAt || dayjs().toISOString(),
         lastUpdatedAt: dayjs().toISOString()
       };
@@ -146,43 +148,22 @@ export function createRouter(db: {
         return;
       }
 
-      if (sub.configMode === "visual" && sub.visualConfig?.proxyProviders) {
-        const previewFailedProviders: { name: string; error: string }[] = [];
+      const failedProviders: { name: string; error: string }[] = [];
+      if (
+        ctx.query.refresh === "true" &&
+        sub.configMode === "visual" &&
+        sub.visualConfig?.proxyProviders
+      ) {
         for (const provider of sub.visualConfig.proxyProviders) {
-          try {
-            if (
-              !provider ||
-              provider.enabled === false ||
-              provider.type !== "url" ||
-              !provider.url
-            ) {
-              continue;
-            }
-            const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
-            provider.fetchedNodes = nodes;
-            provider.lastFetchTime = dayjs().toISOString();
-          } catch (error: any) {
-            const errorMessage = error?.message || "未知错误";
-            previewFailedProviders.push({
-              name: provider?.name || "未命名订阅源",
-              error: errorMessage
+          if (provider.enabled === false || provider.type !== "url") continue;
+          if (!(await syncProvider(provider, ua))) {
+            failedProviders.push({
+              name: provider.name,
+              error: provider.lastSyncError!
             });
-            console.error(
-              `Preview fetch failed for provider ${provider?.name || "unknown"}: ${errorMessage}`
-            );
           }
         }
-        if (previewFailedProviders.length > 0) {
-          const failedDetail = previewFailedProviders
-            .map(item => `${item.name}: ${item.error}`)
-            .join("；");
-          ctx.body = createErrorResponse(`预览拉取节点失败：${failedDetail}`);
-          ctx.status = 400;
-          return;
-        }
       }
-
-      const isUnlimitTraffic = sub.totalTrafficBytes === null;
 
       const webPageUrl = getWebPageUrl(ctx);
 
@@ -196,7 +177,12 @@ export function createRouter(db: {
         sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
       }`;
 
-      ctx.body = createSuccessResponse({ content }, "预览生成成功");
+      ctx.body = createSuccessResponse(
+        { content, failedProviders },
+        failedProviders.length > 0
+          ? "预览已生成，但部分来源刷新失败；失败来源使用已有缓存"
+          : "预览生成成功"
+      );
     } catch (error) {
       console.error("预览生成错误:", error);
       ctx.status = 500;
