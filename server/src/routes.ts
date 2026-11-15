@@ -141,7 +141,12 @@ export function createRouter(db: {
         const previewFailedProviders: { name: string; error: string }[] = [];
         for (const provider of sub.visualConfig.proxyProviders) {
           try {
-            if (!provider || provider.type !== "url" || !provider.url) {
+            if (
+              !provider ||
+              provider.enabled === false ||
+              provider.type !== "url" ||
+              !provider.url
+            ) {
               continue;
             }
             const nodes = await fetchProxyNodesFromUrl(provider.url, ua);
@@ -515,7 +520,12 @@ export function createRouter(db: {
         const failedProviders: { name: string; error: string }[] = [];
         for (const provider of sub.visualConfig.proxyProviders) {
           try {
-            if (!provider || provider.type !== "url" || !provider.url) {
+            if (
+              !provider ||
+              provider.enabled === false ||
+              provider.type !== "url" ||
+              !provider.url
+            ) {
               continue;
             }
             const nodes = await fetchProxyNodesFromUrl(provider.url, ua);

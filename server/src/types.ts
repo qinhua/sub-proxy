@@ -82,6 +82,7 @@ export interface Subscription {
     proxyProviders?: {
       id: string;
       name: string;
+      enabled?: boolean;
       type: "url" | "content";
       url?: string;
       content?: string;

@@ -46,6 +46,7 @@ export function generateVisualYaml(sub: Subscription): string {
   // 2. Add Proxy Providers
   if (proxyProviders) {
     for (const provider of proxyProviders) {
+      if (provider.enabled === false) continue;
       if (provider.type === "content" && provider.content) {
         try {
           const nodes = YAML.parse(provider.content);

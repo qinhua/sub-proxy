@@ -101,6 +101,16 @@ export function SubscriptionForm() {
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
   const ruleProvidersWatch = Form.useWatch("ruleProviders", form) || [];
 
+  const requireEnabledProviderValue = (
+    index: number,
+    value: unknown,
+    message: string
+  ) =>
+    form.getFieldValue(["proxyProviders", index, "enabled"]) === false ||
+    (typeof value === "string" ? value.trim().length > 0 : Boolean(value))
+      ? Promise.resolve()
+      : Promise.reject(new Error(message));
+
   // 控制流量和有效期开关的状态
   const [unlimitedTraffic, setUnlimitedTraffic] = useState(true);
   const [permanentValid, setPermanentValid] = useState(true);
@@ -134,7 +144,13 @@ export function SubscriptionForm() {
             ? bytesToGb(target.totalTrafficBytes ?? 0)
             : undefined,
           period: startTime && expireTime ? [startTime, expireTime] : undefined,
-          proxyProviders: target.visualConfig?.proxyProviders || [],
+          proxyProviders: (target.visualConfig?.proxyProviders || []).map(
+            provider => ({
+              ...provider,
+              id: provider.id || uuidv4(),
+              enabled: provider.enabled !== false
+            })
+          ),
           chainProxies: target.visualConfig?.chainProxies || [],
           ruleProviders: target.visualConfig?.ruleProviders || []
         });
@@ -184,7 +200,13 @@ export function SubscriptionForm() {
           startTime && expireTime
             ? [startTime, expireTime]
             : [dayjs(), dayjs().add(30, "day")],
-        proxyProviders: duplicateFrom.visualConfig?.proxyProviders || [],
+        proxyProviders: (duplicateFrom.visualConfig?.proxyProviders || []).map(
+          provider => ({
+            ...provider,
+            id: uuidv4(),
+            enabled: provider.enabled !== false
+          })
+        ),
         chainProxies: duplicateFrom.visualConfig?.chainProxies || [],
         ruleProviders: duplicateFrom.visualConfig?.ruleProviders || []
       });
@@ -292,22 +314,10 @@ export function SubscriptionForm() {
     };
   };
 
-  const hasUrlProxyProvider = (values: any) => {
-    return (
-      configMode === "visual" &&
-      (values.proxyProviders || []).some(
-        (provider: any) => provider?.type === "url" && provider?.url?.trim()
-      )
-    );
-  };
-
-  const submitSubscription = async (
-    values: any,
-    options: { navigateAfterSave?: boolean; forceFetchNodes?: boolean } = {}
-  ) => {
-    const { navigateAfterSave = true, forceFetchNodes = false } = options;
+  const submitSubscription = async () => {
     setLoading(true);
     try {
+      const values = form.getFieldsValue(true);
       const payload = buildPayload(values);
       let savedId = params.id as string;
 
@@ -318,8 +328,15 @@ export function SubscriptionForm() {
         savedId = created.data?.id || "";
       }
 
-      const shouldFetchNodes = forceFetchNodes || hasUrlProxyProvider(values);
-      if (shouldFetchNodes) {
+      const hasActiveUrlProvider =
+        configMode === "visual" &&
+        (values.proxyProviders || []).some(
+          (provider: any) =>
+            provider?.enabled !== false &&
+            provider?.type === "url" &&
+            provider?.url?.trim()
+        );
+      if (hasActiveUrlProvider) {
         if (!savedId) {
           throw new Error("未获取到订阅ID，无法拉取节点");
         }
@@ -332,9 +349,7 @@ export function SubscriptionForm() {
         message.success(isEdit ? "已保存" : "已创建");
       }
 
-      if (navigateAfterSave) {
-        navigate("/");
-      }
+      navigate("/");
     } catch (e: any) {
       message.error(e.response?.data?.message || e.message || "保存失败");
       throw e;
@@ -343,8 +358,8 @@ export function SubscriptionForm() {
     }
   };
 
-  const onFinish = async (values: any) => {
-    await submitSubscription(values);
+  const onFinish = async () => {
+    await submitSubscription();
   };
 
   return (
@@ -617,8 +632,7 @@ export function SubscriptionForm() {
                 className="mb-6"
               >
                 <Typography.Paragraph type="secondary">
-                  可以配置多个机场节点，每个节点都有自己的名称、来源类型、URL
-                  等信息。
+                  可以配置多个机场节点。关闭的节点会保留配置，但不会被拉取或加入订阅。保存时会立即拉取已启用的订阅链接，之后按更新间隔自动刷新。
                 </Typography.Paragraph>
                 <Form.List name="proxyProviders">
                   {(fields, { add, remove }) => (
@@ -628,9 +642,23 @@ export function SubscriptionForm() {
                         return (
                           <Card size="small" className="mb-4" key={field.key}>
                             <div className="flex justify-between items-center mb-2">
-                              <Typography.Text strong>
-                                节点配置 {index + 1}
-                              </Typography.Text>
+                              <Space>
+                                <Form.Item
+                                  {...restField}
+                                  name={[field.name, "enabled"]}
+                                  valuePropName="checked"
+                                  className="mb-0"
+                                >
+                                  <Switch
+                                    checkedChildren="启用"
+                                    unCheckedChildren="禁用"
+                                    aria-label={`节点配置 ${index + 1} 是否启用`}
+                                  />
+                                </Form.Item>
+                                <Typography.Text strong>
+                                  节点配置 {index + 1}
+                                </Typography.Text>
+                              </Space>
                               <Button
                                 size="small"
                                 danger
@@ -648,7 +676,14 @@ export function SubscriptionForm() {
                                   name={[field.name, "name"]}
                                   label="名称"
                                   rules={[
-                                    { required: true, message: "请输入名称" }
+                                    {
+                                      validator: (_, value) =>
+                                        requireEnabledProviderValue(
+                                          field.name,
+                                          value,
+                                          "请输入名称"
+                                        )
+                                    }
                                   ]}
                                 >
                                   <Input placeholder="如：XX机场" />
@@ -659,7 +694,16 @@ export function SubscriptionForm() {
                                   {...restField}
                                   name={[field.name, "type"]}
                                   label="来源类型"
-                                  rules={[{ required: true }]}
+                                  rules={[
+                                    {
+                                      validator: (_, value) =>
+                                        requireEnabledProviderValue(
+                                          field.name,
+                                          value,
+                                          "请选择来源类型"
+                                        )
+                                    }
+                                  ]}
                                   initialValue="url"
                                 >
                                   <Select>
@@ -698,8 +742,12 @@ export function SubscriptionForm() {
                                             label="订阅链接"
                                             rules={[
                                               {
-                                                required: true,
-                                                message: "请输入订阅链接"
+                                                validator: (_, value) =>
+                                                  requireEnabledProviderValue(
+                                                    field.name,
+                                                    value,
+                                                    "请输入订阅链接"
+                                                  )
                                               }
                                             ]}
                                           >
@@ -723,35 +771,6 @@ export function SubscriptionForm() {
                                           </Form.Item>
                                         </Col>
                                       </Row>
-                                      {isEdit && (
-                                        <div className="mb-4">
-                                          <Button
-                                            size="small"
-                                            type="primary"
-                                            onClick={async () => {
-                                              try {
-                                                const values =
-                                                  await form.validateFields();
-                                                await submitSubscription(
-                                                  values,
-                                                  {
-                                                    navigateAfterSave: false,
-                                                    forceFetchNodes: true
-                                                  }
-                                                );
-                                              } catch {}
-                                            }}
-                                          >
-                                            保存并拉取节点
-                                          </Button>
-                                          <Typography.Text
-                                            type="secondary"
-                                            className="ml-2 text-xs"
-                                          >
-                                            (将自动保存当前配置并拉取节点)
-                                          </Typography.Text>
-                                        </div>
-                                      )}
                                     </>
                                   );
                                 } else {
@@ -762,8 +781,12 @@ export function SubscriptionForm() {
                                       label="节点列表 (YAML)"
                                       rules={[
                                         {
-                                          required: true,
-                                          message: "请输入节点内容"
+                                          validator: (_, value) =>
+                                            requireEnabledProviderValue(
+                                              field.name,
+                                              value,
+                                              "请输入节点内容"
+                                            )
                                         }
                                       ]}
                                     >
@@ -781,7 +804,9 @@ export function SubscriptionForm() {
                       })}
                       <Button
                         type="dashed"
-                        onClick={() => add({ id: uuidv4(), type: "url" })}
+                        onClick={() =>
+                          add({ id: uuidv4(), type: "url", enabled: true })
+                        }
                         block
                         icon={<PlusOutlined />}
                       >
