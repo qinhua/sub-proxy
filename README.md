@@ -109,6 +109,7 @@ sub-proxy/
 │   │   ├── db.ts              # 数据库管理
 │   │   ├── auth.ts            # 认证逻辑
 │   │   └── types.ts           # 类型定义
+│   ├── tests/                 # 后端测试
 │   ├── data/                  # 数据文件
 │   │   └── db_default.json    # 默认数据模板
 │   └── upload/                 # 上传文件目录
@@ -126,6 +127,7 @@ sub-proxy/
 │   │   └── types.ts           # 类型定义
 │   └── dist/                  # 构建输出
 ├── shared/                    # 共享代码
+│   ├── config/                # YAML 与 Shadowrocket 默认基础配置
 │   └── types/                 # 共享类型定义
 ├── docs/                      # 项目文档
 ├── data/                      # 运行时数据（Docker 映射）
@@ -161,6 +163,14 @@ sub-proxy/
 - **动态更新**: 实时同步订阅状态和配置
 - **多端同步**: 一处修改，处处生效
 
+订阅列表的二维码弹窗可分别查看、复制和下载 YAML 与 Shadowrocket 配置。Shadowrocket 链接使用 `client=shadowrocket` 输出原生 `.conf`，包含节点、策略组、规则和 `[General]`；普通链接保持 Clash YAML。未指定 `client` 时，服务端也会通过订阅请求的 `User-Agent: Shadowrocket/...` 自动识别；显式 `client=clash` 或 `yaml=1` 始终返回 YAML。GET 请求体不用于识别客户端。首次导入后需要在手机上选中该配置，后续更新仍从服务端获取。
+
+客户端的订阅请求头会随版本和自定义设置变化：Shadowrocket 常见 `Shadowrocket/<版本>`（[示例](https://github.com/Openwrt-Passwall/openwrt-passwall2/blob/main/luci-app-passwall2/luasrc/model/cbi/passwall2/client/node_subscribe_config.lua)）；[Clash Verge Rev](https://www.clashverge.dev/privacy) 默认 `clash-verge/v<版本>`；[OpenClash](https://github.com/vernesong/OpenClash/blob/master/luci-app-openclash/luasrc/model/cbi/openclash/config-subscribe-edit.lua) 可设置为 `clash-verge/...`、`clash.meta/...` 或 `Clash`。普通 Clash 客户端没有统一的订阅下载 UA，因此服务端只自动识别 Shadowrocket，其余均返回 YAML。
+
+编辑订阅时，“基础配置”提供 YAML 和 Shadowrocket 两个编辑区；两者的默认值统一定义在 `shared/config`。可视化模式的 YAML 基础配置采用国内域名走阿里 DoT、其余域名走指定代理组的配置；Shadowrocket 编辑区展示与服务端共用的 `[General]` 默认值。每行填写一项 `key = value`，已有订阅的自定义项会覆盖同名默认项，同一项只能填写一次。Shadowrocket 默认 `dns-server` 保留两个阿里 DoT 地址。未单独设置 `proxy-dns-server`，IP 类规则生成时统一带 `no-resolve`。不同客户端对代理链的解析可能不同，首次导入应在手机上检查美国住宅节点的出口 IP，并在蜂窝网络下复测 DNS 和 WebRTC。
+
+目前原生转换支持 AnyTLS、SOCKS5、Shadowsocks、Trojan 节点，以及当前配置使用的常见规则。遇到不支持的协议、策略组或规则时，服务端返回 422 错误，不会静默丢弃。若客户端修改了 User-Agent，应使用显式 `client=shadowrocket` 链接。
+
 ## 🛠️ 开发环境
 
 ### 本地开发
@@ -174,6 +184,10 @@ pnpm dev
 
 # 构建项目
 pnpm build
+
+# 运行后端测试（首次运行前先构建共享包）
+pnpm build:config && pnpm build:types
+pnpm --filter server test
 ```
 
 ## 📦 部署方式
@@ -248,10 +262,10 @@ WEB_PAGE_URL=https://sub-proxy.yourdomain.com
 
 | Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
 | ---------------------------------- | ----------- | ------------ | ------ |
-| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅     |
-| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅     |
-| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
-| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
+| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅      |
+| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅      |
+| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅      |
+| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌      |
 
 ## 🔄 升级流程
 
@@ -408,7 +422,7 @@ docker logs <容器名称>
 
 ### TODO
 
-- [ ] 支持订阅转换功能
+- [ ] 扩展更多客户端和协议的订阅转换
 - [ ] 支持过滤订阅节点中的部分节点
 - [ ] 配置文件正确性校验
 

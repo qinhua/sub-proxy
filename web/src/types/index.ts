@@ -22,6 +22,7 @@ export type Subscription = {
   lastSyncedAt?: string;
   lastDownloadedAt?: string;
   yamlConfig: string;
+  shadowrocketGeneral?: string;
   pinnedOrder?: number; // 置顶顺序，越小越靠前，undefined 表示未置顶
   configMode?: "yaml" | "visual";
   visualConfig?: {

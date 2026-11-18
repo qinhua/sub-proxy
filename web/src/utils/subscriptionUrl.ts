@@ -63,10 +63,11 @@ export function clearSubscriptionUrlCache(): void {
 export function buildSubscriptionUrl(
   subId: string,
   withTs = true,
-  returnYaml = false
+  returnYaml = false,
+  client?: "shadowrocket" | "clash"
 ): string {
   const baseUrl = getSubscriptionBaseUrl();
-  const url = `${baseUrl.replace(/\/$/, "")}/subscribe?id=${subId}`;
+  const url = `${baseUrl.replace(/\/$/, "")}/subscribe?id=${subId}${client ? `&client=${client}` : ""}`;
   if (returnYaml) {
     return withTs ? `${url}&yaml=1&t=${Date.now()}` : `${url}&yaml=1`;
   }

@@ -2,3 +2,6 @@ packages:
   - "server"
   - "web"
   - "shared/types"
+  - "shared/config"
+allowBuilds:
+  esbuild: set this to true or false

@@ -8,7 +8,7 @@ import {
   getExpiryMetadata,
   PERMANENT_EXPIRE_TIME,
   UNLIMITED_TRAFFIC_BYTES
-} from "./subscriptionMetadata";
+} from "../src/subscriptionMetadata";
 
 describe("subscription metadata", () => {
   it("uses numeric-compatible expiry metadata for permanent subscriptions", () => {

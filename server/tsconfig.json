@@ -16,12 +16,11 @@
     "emitDeclarationOnly": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@sub-proxy/types": ["../shared/types/src/index.ts"]
+      "@/*": ["src/*"]
     },
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["tests/**/*"]
 }

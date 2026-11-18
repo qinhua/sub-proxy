@@ -9,6 +9,7 @@ import { z } from "zod";
 import { generateAvatarUrl } from "./utils";
 import { syncProvider } from "./providerSync";
 import { generateVisualYaml } from "./yamlGenerator";
+import { generateShadowrocketConfig } from "./shadowrocketGenerator";
 import { validateVisualConfig } from "./visualConfigValidation";
 import { Subscription, DbSchema } from "./types";
 import { fileURLToPath } from "url";
@@ -50,6 +51,7 @@ const subInputSchema = z.object({
   startAt: z.union([z.string().datetime(), z.string()]),
   expireAt: z.union([z.string().datetime(), z.string()]),
   yamlConfig: z.string().optional().default(""),
+  shadowrocketGeneral: z.string().max(10000).optional(),
   configMode: z.enum(["yaml", "visual"]).optional(),
   visualConfig: z.any().optional()
 });
@@ -134,6 +136,7 @@ export function createRouter(db: {
         startAt: incoming.startAt || "",
         expireAt: incoming.expireAt || "",
         yamlConfig: incoming.yamlConfig || "",
+        shadowrocketGeneral: incoming.shadowrocketGeneral,
         configMode: incoming.configMode || "yaml",
         visualConfig: incoming.visualConfig
           ? structuredClone(incoming.visualConfig)
@@ -345,6 +348,7 @@ export function createRouter(db: {
         startAt: parsed.data.startAt,
         expireAt: parsed.data.expireAt,
         yamlConfig: parsed.data.yamlConfig,
+        shadowrocketGeneral: parsed.data.shadowrocketGeneral,
         configMode: parsed.data.configMode || "yaml",
         visualConfig: parsed.data.visualConfig,
         createAt: now,
@@ -586,7 +590,11 @@ export function createRouter(db: {
   // 订阅url格式：http://192.168.0.1:3001/subscribe?id=c730fb28-3ec0-4196-be40-d667a3e18464&t=176104878698
   router.get("/subscribe", async ctx => {
     try {
-      const { id, yaml } = ctx.query as { id: string; yaml: string };
+      const { id, yaml, client } = ctx.query as {
+        id: string;
+        yaml?: string;
+        client?: string;
+      };
       const sub = db.data.subscriptions.find(s => s.id === id);
       if (!sub) {
         ctx.status = 404;
@@ -636,9 +644,37 @@ export function createRouter(db: {
         withComments: true
       });
 
-      const content = `${headerComment}\n\n${
-        sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig
-      }`;
+      // GET 订阅请求通常没有请求体；仅在没有显式客户端参数时参考 User-Agent。
+      const userAgent = ctx.get?.("User-Agent") || "";
+      const isShadowrocket =
+        client === "shadowrocket" ||
+        (!client &&
+          yaml !== "1" &&
+          /^shadowrocket(?:\/|\s|$)/i.test(userAgent));
+      const sourceYaml =
+        sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig;
+      let content: string;
+      if (isShadowrocket) {
+        try {
+          content = generateShadowrocketConfig(
+            sourceYaml,
+            sub.shadowrocketGeneral
+          );
+        } catch (error) {
+          ctx.status = 422;
+          ctx.body = createErrorResponse(
+            `Shadowrocket 配置生成失败：${(error as Error).message}`,
+            422
+          );
+          return;
+        }
+      } else if (client && client !== "clash") {
+        ctx.status = 400;
+        ctx.body = createErrorResponse("不支持的订阅客户端类型", 400);
+        return;
+      } else {
+        content = `${headerComment}\n\n${sourceYaml}`;
+      }
 
       // 设置响应头 - 根据环境变量设置不同的缓存策略
       if (isDev) {
@@ -651,11 +687,18 @@ export function createRouter(db: {
         ctx.set("Expires", "0");
       } else {
         // 生产环境：1分钟缓存
-        ctx.set("Cache-Control", "public, max-age=60");
+        ctx.set("Cache-Control", "private, max-age=60");
       }
+      ctx.set("Vary", "User-Agent");
 
       // 设置响应头 - 根据yaml参数设置不同的响应头
-      if (yaml === "1") {
+      if (isShadowrocket) {
+        ctx.set("Content-Type", "text/plain; charset=utf-8");
+        ctx.set(
+          "Content-Disposition",
+          `attachment; filename*=UTF-8''${encodeURIComponent(filename)}.conf`
+        );
+      } else if (yaml === "1") {
         ctx.set("Content-Type", "text/yaml; charset=utf-8");
         ctx.set(
           "Content-Disposition",

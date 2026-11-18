@@ -14,7 +14,8 @@ import {
   Col,
   Tooltip,
   Input,
-  Select
+  Select,
+  Tabs
 } from "antd";
 import copy from "copy-to-clipboard";
 import {
@@ -681,7 +682,7 @@ function RowActions({
             {pinnedIds.includes(sub.id) ? "📌" : "📍"}
           </Button>
         </Tooltip>
-        <Tooltip title="预览完整配置">
+        <Tooltip title="预览完整 YAML 配置">
           <Button
             type="text"
             style={{ width: 36 }}
@@ -767,11 +768,22 @@ function RowActions({
             style={{ width: 36 }}
             icon={<QrcodeOutlined />}
             onClick={() => {
-              const url = buildSubscriptionUrl(sub.id, true);
               const yamlUrl = buildSubscriptionUrl(sub.id, true, true);
+              const clashUrl = buildSubscriptionUrl(
+                sub.id,
+                true,
+                false,
+                "clash"
+              );
+              const shadowrocketUrl = buildSubscriptionUrl(
+                sub.id,
+                true,
+                false,
+                "shadowrocket"
+              );
               Modal.info({
-                title: "二维码",
-                width: 400,
+                title: `订阅二维码 · ${sub.name}`,
+                width: 460,
                 closable: true,
                 maskClosable: true,
                 okButtonProps: {
@@ -780,23 +792,60 @@ function RowActions({
                   }
                 },
                 content: (
-                  <div className="flex flex-col items-center -ml-10 py-4 gap-2">
-                    <QRCode value={url} size={200} />
-                    <Typography.Title level={5}>{sub.name}</Typography.Title>
-                    <Typography.Text
-                      copyable
-                      style={{
-                        wordBreak: "break-all",
-                        color: "#666",
-                        fontSize: 14
-                      }}
-                    >
-                      {url}
-                    </Typography.Text>
-                    <Typography.Link href={yamlUrl} target="_blank">
-                      下载订阅配置文件
-                    </Typography.Link>
-                  </div>
+                  <Tabs
+                    items={[
+                      {
+                        key: "yaml",
+                        label: "Clash 配置",
+                        url: clashUrl,
+                        file: "Clash"
+                      },
+                      {
+                        key: "shadowrocket",
+                        label: "Shadowrocket 配置",
+                        url: shadowrocketUrl,
+                        file: "Shadowrocket"
+                      }
+                    ].map(({ key, label, url, file }) => ({
+                      key,
+                      label,
+                      children: (
+                        <div className="flex flex-col items-center py-4 gap-3">
+                          <QRCode value={url} size={200} />
+                          <Typography.Text
+                            copyable={{ text: url }}
+                            style={{
+                              wordBreak: "break-all",
+                              textAlign: "center"
+                            }}
+                          >
+                            {url}
+                          </Typography.Text>
+                          <Space
+                            direction="horizontal"
+                            align="center"
+                            size={10}
+                          >
+                            <Button
+                              type="primary"
+                              variant="outlined"
+                              href={url}
+                              target="_blank"
+                            >
+                              下载 {file} 配置
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              href={yamlUrl}
+                              target="_blank"
+                            >
+                              下载 YAML 配置
+                            </Button>
+                          </Space>
+                        </div>
+                      )
+                    }))}
+                  />
                 )
               });
             }}

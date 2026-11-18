@@ -77,6 +77,7 @@ export interface Subscription {
   lastDownloadedAt?: string;
   usedTrafficBytes?: number;
   yamlConfig: string;
+  shadowrocketGeneral?: string;
   pinnedOrder?: number;
   configMode?: "yaml" | "visual";
   visualConfig?: {

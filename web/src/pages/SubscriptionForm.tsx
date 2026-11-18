@@ -15,8 +15,13 @@ import {
   Radio,
   Select,
   Tag,
-  Alert
+  Alert,
+  Tabs
 } from "antd";
+import {
+  DEFAULT_SHADOWROCKET_GENERAL,
+  resolveShadowrocketGeneral
+} from "@sub-proxy/config";
 import {
   PlusOutlined,
   ArrowLeftOutlined,
@@ -46,6 +51,14 @@ const PROXY_GROUPS_MARKER = "# ================= 代理组配置 ===============
 
 const bytesToGb = (bytes: number) => Number((bytes / BYTES_PER_GB).toFixed(2));
 const gbToBytes = (gb: number) => Math.round(gb * BYTES_PER_GB);
+
+const displayShadowrocketGeneral = (saved?: string) => {
+  try {
+    return resolveShadowrocketGeneral(saved);
+  } catch {
+    return saved || DEFAULT_SHADOWROCKET_GENERAL;
+  }
+};
 
 const splitLegacyBaseConfig = (rawConfig?: string) => {
   const config = (rawConfig || "").trim();
@@ -95,6 +108,9 @@ export function SubscriptionForm() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [yaml, setYaml] = useState(DEFAULT_YAML_CONFIG);
+  const [shadowrocketGeneral, setShadowrocketGeneral] = useState(
+    DEFAULT_SHADOWROCKET_GENERAL
+  );
   const [configMode, setConfigMode] = useState<"yaml" | "visual">("yaml");
   const [selectedRulePreset, setSelectedRulePreset] = useState<string>("");
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -190,6 +206,9 @@ export function SubscriptionForm() {
         });
         setConfigMode(target.configMode || "yaml");
         setYaml(target.yamlConfig || "");
+        setShadowrocketGeneral(
+          displayShadowrocketGeneral(target.shadowrocketGeneral)
+        );
         if (target.visualConfig) {
           if (target.visualConfig.proxyGroupsConfig !== undefined) {
             setBaseConfig(
@@ -246,6 +265,9 @@ export function SubscriptionForm() {
       });
       setConfigMode(duplicateFrom.configMode || "yaml");
       setYaml(duplicateFrom.yamlConfig || "");
+      setShadowrocketGeneral(
+        displayShadowrocketGeneral(duplicateFrom.shadowrocketGeneral)
+      );
       if (duplicateFrom.visualConfig?.proxyGroupsConfig !== undefined) {
         setBaseConfig(
           duplicateFrom.visualConfig.baseConfig || DEFAULT_BASE_CONFIG
@@ -336,6 +358,7 @@ export function SubscriptionForm() {
       startAt: startAt?.toISOString?.() || "",
       expireAt: expireAt?.toISOString?.() || "",
       yamlConfig: yaml,
+      shadowrocketGeneral,
       configMode: configMode,
       visualConfig: {
         baseConfig: baseConfig,
@@ -650,65 +673,69 @@ export function SubscriptionForm() {
             </Typography.Text>
           </Card>
 
-          {configMode === "yaml" ? (
-            <Card size="small" title="YAML 配置" className="mb-6">
-              <Form.Item
-                label="Clash 配置文件（YAML）"
-                required
-                tooltip={
-                  <>
-                    请粘贴完整的 yaml 格式配置文件。
-                    <a
-                      className="text-blue-500"
-                      href="https://wiki.metacubex.one/config/"
-                      target="_blank"
-                    >
-                      配置文档
-                    </a>
-                  </>
+          <Card size="small" title="基础配置" className="mb-6">
+            <Typography.Paragraph type="secondary">
+              分别维护 Clash YAML 与 Shadowrocket 的基础参数。直填 YAML
+              模式下，YAML
+              编辑区是完整配置；可视化模式下，它只负责生成配置的基础字段（例如
+              mode、dns），节点、代理组和规则在下方单独维护。Shadowrocket
+              编辑区对应生成配置的 [General]，每行一个 key =
+              value；同名项只保留一行。
+            </Typography.Paragraph>
+            <Tabs
+              items={[
+                {
+                  key: "yaml",
+                  label: "YAML 基础配置",
+                  children: (
+                    <div className="border border-gray-300 rounded-lg overflow-hidden">
+                      <Editor
+                        height={configMode === "yaml" ? "400px" : "200px"}
+                        theme="vs-dark"
+                        defaultLanguage="yaml"
+                        value={configMode === "yaml" ? yaml : baseConfig}
+                        onChange={v =>
+                          configMode === "yaml"
+                            ? setYaml(v || "")
+                            : setBaseConfig(v || "")
+                        }
+                        options={{
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          wordWrap: "on",
+                          automaticLayout: true
+                        }}
+                      />
+                    </div>
+                  )
+                },
+                {
+                  key: "shadowrocket",
+                  label: "Shadowrocket 基础配置",
+                  children: (
+                    <div className="border border-gray-300 rounded-lg overflow-hidden">
+                      <Editor
+                        height="360px"
+                        theme="vs-dark"
+                        defaultLanguage="ini"
+                        value={shadowrocketGeneral}
+                        onChange={v => setShadowrocketGeneral(v || "")}
+                        options={{
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          wordWrap: "on",
+                          automaticLayout: true
+                        }}
+                      />
+                    </div>
+                  )
                 }
-              >
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <Editor
-                    height="400px"
-                    theme="vs-dark"
-                    defaultLanguage="yaml"
-                    value={yaml}
-                    onChange={v => setYaml(v || "")}
-                    options={{
-                      minimap: { enabled: false },
-                      scrollBeyondLastLine: false,
-                      wordWrap: "on",
-                      automaticLayout: true,
-                      padding: { top: 20, bottom: 20 }
-                    }}
-                  />
-                </div>
-              </Form.Item>
-            </Card>
-          ) : (
-            <>
-              {/* 可视化配置模块 */}
-              <Card
-                size="small"
-                title="基础配置 (Base Settings)"
-                className="mb-6"
-              >
-                <Typography.Paragraph type="secondary">
-                  基础的头部配置，包含 mode、dns 等，可根据实际情况调整。
-                </Typography.Paragraph>
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                  <Editor
-                    height="200px"
-                    theme="vs-dark"
-                    defaultLanguage="yaml"
-                    value={baseConfig}
-                    onChange={v => setBaseConfig(v || "")}
-                    options={{ minimap: { enabled: false } }}
-                  />
-                </div>
-              </Card>
+              ]}
+            />
+          </Card>
 
+          {configMode === "visual" && (
+            <>
               <Card
                 size="small"
                 title="代理组配置 (Proxy Groups)"
@@ -972,9 +999,10 @@ export function SubscriptionForm() {
               >
                 <Typography.Paragraph type="secondary">
                   对于需要固定 IP 出口的场景（如海外社媒运营、访问各种 AI
-                  服务），需要通过配置链式代理来实现，具体节点请自行购买。
+                  服务），需要通过配置链式代理来实现，静态 IP 节点请自行购买。
                   <br />
-                  第一跳将自动使用上方所有机场节点中延迟最低的节点。您只需要配置第二跳链式节点（如：洛杉矶静态住宅IP）即可。
+                  第一跳将自动使用上方所有机场节点中延迟最低的节点。您只需要配置最终的静态
+                  IP 节点即可（如：洛杉矶静态住宅IP）。
                 </Typography.Paragraph>
                 <Form.List name="chainProxies">
                   {(fields, { add, remove }) => (
@@ -985,7 +1013,7 @@ export function SubscriptionForm() {
                           <Card size="small" className="mb-4" key={field.key}>
                             <div className="flex justify-between items-center mb-2">
                               <Typography.Text strong>
-                                链式代理节点 {index + 1}
+                                静态 IP 节点 {index + 1}
                               </Typography.Text>
                               <Button
                                 size="small"
@@ -1011,7 +1039,7 @@ export function SubscriptionForm() {
                             <Form.Item
                               {...restField}
                               name={[field.name, "secondHopConfig"]}
-                              label="第二跳节点配置 (YAML)"
+                              label="节点配置 (YAML)"
                               rules={[
                                 { required: true, message: "请输入节点配置" }
                               ]}

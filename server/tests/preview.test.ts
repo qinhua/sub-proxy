@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createRouter } from "./routes";
-import type { Subscription, DbSchema } from "./types";
+import { createRouter } from "../src/routes";
+import type { Subscription, DbSchema } from "../src/types";
 
 test("preview without enabled providers remains available without saving", async () => {
   const sub = {

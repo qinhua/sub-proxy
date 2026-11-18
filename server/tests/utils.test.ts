@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseClashProxyNodes } from "./utils";
+import { parseClashProxyNodes } from "../src/utils";
 
 const clashYaml = `
 proxies:

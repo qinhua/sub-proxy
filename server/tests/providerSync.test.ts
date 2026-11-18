@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createRouter } from "./routes";
-import { runPeriodicFetch } from "./cron";
-import type { DbSchema, Subscription } from "./types";
+import { createRouter } from "../src/routes";
+import { runPeriodicFetch } from "../src/cron";
+import type { DbSchema, Subscription } from "../src/types";
 
 for (const mode of ["manual", "periodic"]) {
   test(`${mode} sync persists success, failure and cached nodes without leaking credentials`, async () => {

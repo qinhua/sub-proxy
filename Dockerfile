@@ -10,11 +10,12 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY web/package.json ./web/
 COPY server/package.json ./server/
 COPY shared/types/package.json ./shared/types/
+COPY shared/config/package.json ./shared/config/
 RUN pnpm install --frozen-lockfile
 
 COPY shared/ ./shared/
 COPY web/ ./web/
-RUN pnpm --filter @sub-proxy/types run build && pnpm --filter web run build
+RUN pnpm --filter @sub-proxy/config run build && pnpm --filter @sub-proxy/types run build && pnpm --filter web run build
 
 # 构建后端阶段
 FROM base AS server-builder
@@ -23,11 +24,12 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY web/package.json ./web/
 COPY server/package.json ./server/
 COPY shared/types/package.json ./shared/types/
+COPY shared/config/package.json ./shared/config/
 RUN pnpm install --frozen-lockfile
 
 COPY shared/ ./shared/
 COPY server/ ./server/
-RUN pnpm --filter @sub-proxy/types run build && pnpm --filter server run build
+RUN pnpm --filter @sub-proxy/config run build && pnpm --filter @sub-proxy/types run build && pnpm --filter server run build
 
 # 生产镜像阶段
 FROM base
@@ -41,6 +43,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY web/package.json ./web/
 COPY server/package.json ./server/
 COPY shared/types/package.json ./shared/types/
+COPY shared/config/package.json ./shared/config/
 RUN pnpm install --frozen-lockfile --prod
 
 # 拷贝后端构建产物
@@ -52,6 +55,7 @@ COPY --from=server-builder /app/server/upload/avatar/default_avatar.png ./server
 
 # 拷贝共享包构建产物
 COPY --from=server-builder /app/shared/types/dist ./shared/types/dist
+COPY --from=server-builder /app/shared/config/dist ./shared/config/dist
 
 # 拷贝前端构建产物
 COPY --from=web-builder /app/web/dist ./web/dist

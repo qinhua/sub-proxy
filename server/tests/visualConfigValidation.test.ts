@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createRouter } from "./routes";
-import { validateVisualConfig } from "./visualConfigValidation";
-import type { DbSchema, Subscription } from "./types";
+import { createRouter } from "../src/routes";
+import { validateVisualConfig } from "../src/visualConfigValidation";
+import type { DbSchema, Subscription } from "../src/types";
 
 const body = {
   name: "test",

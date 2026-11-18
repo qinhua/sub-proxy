@@ -11,40 +11,7 @@ proxy-groups:
 rule-providers:
 rules:`;
 
-// 默认基础配置
-export const DEFAULT_BASE_CONFIG = `mode: rule
-port: 7890
-bind-address: "*"
-allow-lan: true
-log-level: info
-dns:
-  enable: true
-  ipv6: false
-  use-hosts: true
-  respect-rules: true
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
-  default-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
-  nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
-  fallback:
-    - https://doh.dns.sb/dns-query
-    - https://dns.cloudflare.com/dns-query
-    - https://dns.twnic.tw/dns-query
-  fallback-filter:
-    geoip: true
-    geoip-code: CN
-    ipcidr:
-      - 240.0.0.0/4
-      - 127.0.0.1/32
-      - 0.0.0.0/32
-    domain:
-      - geosite:geolocation-!cn`;
+export { DEFAULT_BASE_CONFIG } from "@sub-proxy/config";
 
 // 默认代理组配置
 export const DEFAULT_PROXY_GROUPS_CONFIG = `proxy-groups:
