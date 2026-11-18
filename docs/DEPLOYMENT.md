@@ -16,7 +16,7 @@ mkdir -p /opt/sub-proxy/{data,upload,logs}
 
 默认信息：
 
-- 管理地址：`http://你的IP:5173`
+- 管理地址：`http://你的IP:3001`
 - 默认账号：`admin`
 - 默认密码：`admin123456`
 
@@ -221,7 +221,7 @@ docker inspect sub-proxy-app | grep Mounts
 
 ## 9. 访问入口
 
-- 管理界面：`http://你的IP:5173`
+- 管理界面：`http://你的IP:3001`
 - 健康检查：`http://你的IP:3001/health`
 - 设置接口：`http://你的IP:3001/api/settings`
 - 订阅接口：`http://你的IP:3001/subscribe?id=订阅ID`
