@@ -654,13 +654,7 @@ export function createRouter(db: {
         withComments: true
       });
 
-      // GET 订阅请求通常没有请求体；仅在没有显式客户端参数时参考 User-Agent。
-      const userAgent = ctx.get?.("User-Agent") || "";
-      const isShadowrocket =
-        client === "shadowrocket" ||
-        (!client &&
-          yaml !== "1" &&
-          /^shadowrocket(?:\/|\s|$)/i.test(userAgent));
+      const isShadowrocket = client === "shadowrocket";
       const sourceYaml =
         sub.configMode === "visual" ? generateVisualYaml(sub) : sub.yamlConfig;
       let content: string;
@@ -699,8 +693,6 @@ export function createRouter(db: {
         // 生产环境：1分钟缓存
         ctx.set("Cache-Control", "private, max-age=60");
       }
-      ctx.set("Vary", "User-Agent");
-
       // 设置响应头 - 根据yaml参数设置不同的响应头
       if (isShadowrocket) {
         ctx.set("Content-Type", "text/plain; charset=utf-8");

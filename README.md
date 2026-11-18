@@ -17,7 +17,7 @@
     <img src="https://img.shields.io/badge/docker-gray?style=flat&logo=docker" alt="Docker"/>
   </a>
   <a href="https://clashvergerev.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Shadowrockets-aa46aa?style=flat&label=Clash" alt="supports"/>
+    <img src="https://img.shields.io/badge/Shadowrocket-aa46aa?style=flat&label=Clash" alt="supports"/>
   </a>
   <a href="https://github.com/qinhua/sub-proxy/blob/main/LICENSE" target="_blank">
     <img src="https://img.shields.io/badge/License-MIT-orange" alt="License"/>
@@ -163,9 +163,7 @@ sub-proxy/
 - **动态更新**: 实时同步订阅状态和配置
 - **多端同步**: 一处修改，处处生效
 
-订阅列表的二维码弹窗可分别查看、复制和下载 YAML 与 Shadowrocket 配置。Shadowrocket 链接使用 `client=shadowrocket` 输出原生 `.conf`，包含节点、策略组、规则和 `[General]`；普通链接保持 Clash YAML。未指定 `client` 时，服务端也会通过订阅请求的 `User-Agent: Shadowrocket/...` 自动识别；显式 `client=clash` 或 `yaml=1` 始终返回 YAML。GET 请求体不用于识别客户端。首次导入后需要在手机上选中该配置，后续更新仍从服务端获取。
-
-客户端的订阅请求头会随版本和自定义设置变化：Shadowrocket 常见 `Shadowrocket/<版本>`（[示例](https://github.com/Openwrt-Passwall/openwrt-passwall2/blob/main/luci-app-passwall2/luasrc/model/cbi/passwall2/client/node_subscribe_config.lua)）；[Clash Verge Rev](https://www.clashverge.dev/privacy) 默认 `clash-verge/v<版本>`；[OpenClash](https://github.com/vernesong/OpenClash/blob/master/luci-app-openclash/luasrc/model/cbi/openclash/config-subscribe-edit.lua) 可设置为 `clash-verge/...`、`clash.meta/...` 或 `Clash`。普通 Clash 客户端没有统一的订阅下载 UA，因此服务端只自动识别 Shadowrocket，其余均返回 YAML。
+订阅列表的二维码弹窗可分别查看、复制和下载 YAML 与 Shadowrocket 配置。列表直接复制的普通链接和显式 `client=clash` 的链接均返回 Clash YAML；普通链接加 `yaml=1` 时仍返回 YAML，并使用 YAML 下载响应头。服务端不根据 `User-Agent` 改变格式。只有显式 `client=shadowrocket` 才输出原生 `.conf`，包含节点、策略组、规则和 `[General]`。该链接应在 Shadowrocket 的「配置」页添加并选中使用，不用于首页的节点订阅入口；后续更新仍从服务端获取。
 
 编辑订阅时，“基础配置”提供 YAML 和 Shadowrocket 两个编辑区；两者的默认值统一定义在 `shared/config`。可视化模式的 YAML 基础配置采用国内域名走阿里 DoT、其余域名走指定代理组的配置；Shadowrocket 编辑区展示与服务端共用的 `[General]` 默认值。每行填写一项 `key = value`，已有订阅的自定义项会覆盖同名默认项，同一项只能填写一次。Shadowrocket 默认 `dns-server` 保留两个阿里 DoT 地址。未单独设置 `proxy-dns-server`，IP 类规则生成时统一带 `no-resolve`。不同客户端对代理链的解析可能不同，首次导入应在手机上检查美国住宅节点的出口 IP，并在蜂窝网络下复测 DNS 和 WebRTC。
 
@@ -175,14 +173,14 @@ sub-proxy/
 
 新生成的「🚀 自动优选」与「🔗 链式优选」目前都使用 `interval: 300`、`tolerance: 50`。`interval` 单位为秒，表示周期测速间隔；`tolerance` 单位为毫秒，表示自动切换节点所需的延迟差。现阶段先保留这组默认值，具体生效值以订阅预览为准：基础代理组中已有同名分组时，其显式配置的测速参数会保留。[Mihomo 的 `url-test` 文档](https://wiki.metacubex.one/config/proxy-groups/url-test/)说明了参数含义。
 
-| 分组        | 测速范围           | 观察到问题时可尝试                                                                         |
-| ----------- | ------------------ | ------------------------------------------------------------------------------------------ |
+| 分组       | 测速范围           | 观察到问题时可尝试                                                                         |
+| ---------- | ------------------ | ------------------------------------------------------------------------------------------ |
 | 🚀 自动优选 | 全部机场节点       | 节点很多、测速请求频繁时，将 `interval` 试调至 `600` 秒                                    |
 | 🔗 链式优选 | 第一跳筛选后的节点 | 第一跳频繁切换或住宅链路连接中断时，保留 `interval: 300`，将 `tolerance` 试调至 `100` 毫秒 |
 
 这两个值不直接衡量整条住宅代理链：默认测速地址是 `www.gstatic.com/generate_204`，第一跳到该地址的延迟较低，不保证经住宅节点访问目标网站也最快。调整前后应比较节点切换频率、住宅出口 IP 和实际连接稳定性。
 
-目前原生转换支持 AnyTLS、SOCKS5、Shadowsocks、Trojan 节点，以及当前配置使用的常见规则。遇到不支持的协议、策略组或规则时，服务端返回 422 错误，不会静默丢弃。若客户端修改了 User-Agent，应使用显式 `client=shadowrocket` 链接。
+目前原生转换支持 AnyTLS、SOCKS5、Shadowsocks、Trojan 节点，以及当前配置使用的常见规则。遇到不支持的协议、策略组或规则时，服务端返回 422 错误，不会静默丢弃。要获取原生配置，使用显式 `client=shadowrocket` 链接。
 
 ## 🛠️ 开发环境
 
@@ -275,10 +273,10 @@ WEB_PAGE_URL=https://sub-proxy.yourdomain.com
 
 | Docker 内部路径                    | 宿主机路径  | 说明         | 持久化 |
 | ---------------------------------- | ----------- | ------------ | ------ |
-| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅     |
-| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅     |
-| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅     |
-| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌     |
+| `/app/server/data/`                | `./data/`   | 运行时数据库 | ✅      |
+| `/app/server/upload/`              | `./upload/` | 用户上传文件 | ✅      |
+| `/app/logs/`                       | `./logs/`   | 日志文件     | ✅      |
+| `/app/server/data/db_default.json` | 不映射      | 默认数据模板 | ❌      |
 
 ## 🔄 升级流程
 

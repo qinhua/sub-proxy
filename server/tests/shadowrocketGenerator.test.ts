@@ -73,7 +73,7 @@ test("unsupported protocols fail instead of silently dropping a node", () => {
   );
 });
 
-test("subscription chooses Shadowrocket by explicit client or User-Agent, and keeps YAML overrides", async () => {
+test("subscription returns YAML regardless of User-Agent unless Shadowrocket is explicit", async () => {
   const sub = {
     id: "s",
     name: "example",
@@ -98,8 +98,8 @@ test("subscription chooses Shadowrocket by explicit client or User-Agent, and ke
     return { ctx, headers };
   };
   const clash = await request();
-  const shadowrocket = await request("shadowrocket");
-  const detected = await request(
+  const shadowrocket = await request("shadowrocket", "clash-verge/v2.5.0");
+  const shadowrocketAgent = await request(
     undefined,
     "Shadowrocket/2000 CFNetwork/123 Darwin/24"
   );
@@ -111,10 +111,14 @@ test("subscription chooses Shadowrocket by explicit client or User-Agent, and ke
   assert.match(shadowrocket.ctx.body, /\[General\]/);
   assert.match(shadowrocket.ctx.body, /\[Proxy\]/);
   assert.match(shadowrocket.headers["Content-Disposition"], /\.conf/);
-  assert.match(detected.ctx.body, /\[General\]/);
-  assert.match(detected.headers["Content-Disposition"], /\.conf/);
+  assert.match(shadowrocketAgent.ctx.body, /proxies:/);
+  assert.doesNotMatch(shadowrocketAgent.ctx.body, /\[General\]/);
+  assert.equal(
+    shadowrocketAgent.headers["Content-Type"],
+    "application/octet-stream; charset=utf-8"
+  );
   assert.match(forcedClash.ctx.body, /proxies:/);
   assert.match(forcedYaml.ctx.body, /proxies:/);
   assert.match(verge.ctx.body, /proxies:/);
-  assert.equal(detected.headers.Vary, "User-Agent");
+  assert.equal(shadowrocketAgent.headers.Vary, undefined);
 });

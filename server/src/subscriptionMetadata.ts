@@ -85,7 +85,7 @@ export function buildSubscriptionInfoBlock({
     ` upload: 0${comment("已上传流量（字节）")}`,
     ` download: ${usedTraffic}${comment("已下载流量（字节）")}`,
     ` total: ${totalTraffic}${comment("总流量（字节）")}`,
-    ` support: ["clash", "openclash", "clash verge", "shadowrockets"]${comment(
+    ` support: ["clash", "openclash", "clash verge", "shadowrocket"]${comment(
       "支持软件"
     )}`,
     ` remain_days: ${quoteYamlString(remainingDays)}${comment("剩余天数")}`,
