@@ -6,6 +6,13 @@ export function validateVisualConfig(
   requireEnabledProvider = true
 ): string | undefined {
   if (sub.configMode !== "visual") return;
+  const filter = sub.visualConfig?.firstHopFilter;
+  if (filter?.enabled) {
+    if (typeof filter.include !== "string" || !filter.include.trim())
+      return "第一跳筛选已启用，请填写至少一个地区或节点关键词";
+    if (filter.exclude != null && typeof filter.exclude !== "string")
+      return "第一跳排除关键词格式无效";
+  }
   const providers = sub.visualConfig?.proxyProviders;
   if (!Array.isArray(providers)) {
     if (!requireEnabledProvider && providers == null) return;

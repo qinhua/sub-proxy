@@ -32,6 +32,8 @@ import {
   DEFAULT_BASE_CONFIG,
   DEFAULT_PROXY_GROUPS_CONFIG,
   DEFAULT_RULES,
+  DEFAULT_FIRST_HOP_INCLUDE,
+  DEFAULT_FIRST_HOP_EXCLUDE,
   RULE_PRESETS
 } from "../constants";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -48,6 +50,11 @@ import {
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const PROXY_GROUPS_MARKER = "# ================= 代理组配置 =================";
+const DEFAULT_FIRST_HOP_FILTER = {
+  enabled: false,
+  include: DEFAULT_FIRST_HOP_INCLUDE,
+  exclude: DEFAULT_FIRST_HOP_EXCLUDE
+};
 
 const bytesToGb = (bytes: number) => Number((bytes / BYTES_PER_GB).toFixed(2));
 const gbToBytes = (gb: number) => Math.round(gb * BYTES_PER_GB);
@@ -121,8 +128,13 @@ export function SubscriptionForm() {
     DEFAULT_PROXY_GROUPS_CONFIG
   );
   const [rulesConfig, setRulesConfig] = useState(DEFAULT_RULES);
+  const [preserveComments, setPreserveComments] = useState(false);
   const [showProviderError, setShowProviderError] = useState(false);
   const proxyProvidersWatch = Form.useWatch("proxyProviders", form) || [];
+  const firstHopFilterEnabled = Form.useWatch(
+    ["firstHopFilter", "enabled"],
+    form
+  );
 
   useEffect(() => {
     if (
@@ -202,8 +214,13 @@ export function SubscriptionForm() {
             })
           ),
           chainProxies: target.visualConfig?.chainProxies || [],
+          firstHopFilter: {
+            ...DEFAULT_FIRST_HOP_FILTER,
+            ...target.visualConfig?.firstHopFilter
+          },
           ruleProviders: target.visualConfig?.ruleProviders || []
         });
+        setPreserveComments(Boolean(target.visualConfig?.preserveComments));
         setConfigMode(target.configMode || "yaml");
         setYaml(target.yamlConfig || "");
         setShadowrocketGeneral(
@@ -261,8 +278,15 @@ export function SubscriptionForm() {
           })
         ),
         chainProxies: duplicateFrom.visualConfig?.chainProxies || [],
+        firstHopFilter: {
+          ...DEFAULT_FIRST_HOP_FILTER,
+          ...duplicateFrom.visualConfig?.firstHopFilter
+        },
         ruleProviders: duplicateFrom.visualConfig?.ruleProviders || []
       });
+      setPreserveComments(
+        Boolean(duplicateFrom.visualConfig?.preserveComments)
+      );
       setConfigMode(duplicateFrom.configMode || "yaml");
       setYaml(duplicateFrom.yamlConfig || "");
       setShadowrocketGeneral(
@@ -289,6 +313,7 @@ export function SubscriptionForm() {
       form.setFieldsValue({
         proxyProviders: [],
         chainProxies: [],
+        firstHopFilter: DEFAULT_FIRST_HOP_FILTER,
         ruleProviders: []
       });
     }
@@ -364,6 +389,8 @@ export function SubscriptionForm() {
         baseConfig: baseConfig,
         proxyGroupsConfig: proxyGroupsConfig,
         rules: rulesConfig,
+        preserveComments,
+        firstHopFilter: values.firstHopFilter || DEFAULT_FIRST_HOP_FILTER,
         proxyProviders: values.proxyProviders || [],
         ruleProviders: values.ruleProviders || [],
         chainProxies: values.chainProxies || []
@@ -1001,9 +1028,58 @@ export function SubscriptionForm() {
                   对于需要固定 IP 出口的场景（如海外社媒运营、访问各种 AI
                   服务），需要通过配置链式代理来实现，静态 IP 节点请自行购买。
                   <br />
-                  第一跳将自动使用上方所有机场节点中延迟最低的节点。您只需要配置最终的静态
-                  IP 节点即可（如：洛杉矶静态住宅IP）。
+                  第一跳由「🔗 链式优选」测速决定，可在下方限制参与测速的节点。
+                  普通的「🚀 自动优选」仍覆盖全部机场节点，「🌏
+                  国外通用」继续使用它。
+                  链式优选会尽量从支持隐藏属性的客户端界面中隐藏。
                 </Typography.Paragraph>
+                <Form.Item
+                  name={["firstHopFilter", "enabled"]}
+                  label="筛选第一跳测速节点"
+                  valuePropName="checked"
+                >
+                  <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                </Form.Item>
+                {firstHopFilterEnabled && (
+                  <Row gutter={16}>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        name={["firstHopFilter", "include"]}
+                        label="包含关键词（命中任意一个）"
+                        rules={[
+                          {
+                            required: true,
+                            whitespace: true,
+                            message: "请填写地区或节点关键词"
+                          }
+                        ]}
+                      >
+                        <Input.TextArea
+                          rows={4}
+                          placeholder="用逗号或换行分隔，例如：香港, 澳门, 台湾, 日本"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        name={["firstHopFilter", "exclude"]}
+                        label="排除关键词（命中任意一个即排除）"
+                      >
+                        <Input.TextArea
+                          rows={4}
+                          placeholder="用逗号或换行分隔，例如：剩余流量, 到期, 官网"
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                )}
+                {firstHopFilterEnabled && (
+                  <Typography.Paragraph type="secondary">
+                    默认覆盖香港、澳门、台湾、日本、新加坡和马来西亚。仅筛选「🔗
+                    链式优选」的候选节点；
+                    如果没有匹配节点，生成配置时会提示调整关键词。
+                  </Typography.Paragraph>
+                )}
                 <Form.List name="chainProxies">
                   {(fields, { add, remove }) => (
                     <>
@@ -1047,7 +1123,7 @@ export function SubscriptionForm() {
                             >
                               <Input.TextArea
                                 rows={6}
-                                placeholder={`格式如下：\nname: "🇺🇸 洛杉矶住宅 IP"\ntype: socks5\nserver: 1.2.3.4\nport: 1080...`}
+                                placeholder={`格式如下：\nname: "🇺🇸 洛杉矶住宅 IP"\ntype: socks5\nserver: 1.2.3.4\nport: 1080\nusername: xxx\npassword: xxx\n`}
                               />
                             </Form.Item>
                           </Card>
@@ -1266,6 +1342,22 @@ export function SubscriptionForm() {
                     options={{ minimap: { enabled: false } }}
                   />
                 </div>
+              </Card>
+              <Card size="small" title="生成选项" className="mb-6">
+                <Space align="start">
+                  <Switch
+                    checked={preserveComments}
+                    onChange={setPreserveComments}
+                    aria-label="保留注释"
+                  />
+                  <div>
+                    <Typography.Text>保留注释</Typography.Text>
+                    <br />
+                    <Typography.Text type="secondary">
+                      开启后保留基础配置、代理组和分流规则中的注释。
+                    </Typography.Text>
+                  </div>
+                </Space>
               </Card>
             </>
           )}

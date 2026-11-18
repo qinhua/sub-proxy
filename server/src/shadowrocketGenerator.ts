@@ -64,6 +64,7 @@ function groupLine(group: Record<string, unknown>): string {
     if (group.interval) parts.push(`interval=${Number(group.interval)}`);
     if (group.tolerance) parts.push(`tolerance=${Number(group.tolerance)}`);
   }
+  if (group.hidden === true) parts.push("hidden=1");
   return `${name} = ${parts.join(",")}`;
 }
 

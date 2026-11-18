@@ -1,6 +1,68 @@
 import YAML from "yaml";
 import { Subscription } from "./types";
 
+export class FirstHopFilterError extends Error {}
+
+const filterKeywords = (value = "") =>
+  value
+    .split(/[,，\n]/)
+    .map(keyword => keyword.trim().toLocaleLowerCase())
+    .filter(Boolean);
+
+function copyComments(source: any, target: any) {
+  if (!source || !target) return;
+  for (const key of ["commentBefore", "comment", "spaceBefore"])
+    if (source[key]) target[key] = source[key];
+
+  if (YAML.isMap(source) && YAML.isMap(target)) {
+    for (const pair of source.items) {
+      const key = YAML.isScalar(pair.key)
+        ? String(pair.key.value)
+        : String(pair.key);
+      const targetPair = target.items.find(
+        (item: any) =>
+          (YAML.isScalar(item.key)
+            ? String(item.key.value)
+            : String(item.key)) === key
+      );
+      if (!targetPair) continue;
+      copyComments(pair.key, targetPair.key);
+      copyComments(pair.value, targetPair.value);
+    }
+  } else if (YAML.isSeq(source) && YAML.isSeq(target)) {
+    for (const [index, item] of source.items.entries()) {
+      const name = YAML.isMap(item) ? item.get("name") : undefined;
+      const targetItem = name
+        ? target.items.find(
+            (candidate: any) =>
+              YAML.isMap(candidate) && candidate.get("name") === name
+          )
+        : YAML.isScalar(item)
+          ? target.items.find(
+              (candidate: any) =>
+                YAML.isScalar(candidate) && candidate.value === item.value
+            )
+          : target.items[index];
+      copyComments(item, targetItem);
+    }
+  }
+}
+
+function clearComments(node: any) {
+  if (!node) return;
+  node.commentBefore = undefined;
+  node.comment = undefined;
+  node.spaceBefore = false;
+  if (YAML.isMap(node)) {
+    for (const pair of node.items) {
+      clearComments(pair.key);
+      clearComments(pair.value);
+    }
+  } else if (YAML.isSeq(node)) {
+    for (const item of node.items) clearComments(item);
+  }
+}
+
 export function generateVisualYaml(sub: Subscription): string {
   if (!sub.visualConfig) return sub.yamlConfig || "";
 
@@ -10,7 +72,9 @@ export function generateVisualYaml(sub: Subscription): string {
     proxyProviders,
     chainProxies,
     ruleProviders,
-    rules
+    rules,
+    preserveComments,
+    firstHopFilter
   } = sub.visualConfig;
 
   let finalDoc: any = {};
@@ -102,12 +166,11 @@ export function generateVisualYaml(sub: Subscription): string {
 
   // 3. Add Chain Proxies (Relay)
   const AUTO_SELECT_GROUP_NAME = "🚀 自动优选";
+  const CHAIN_SELECT_GROUP_NAME = "🔗 链式优选";
   const MANUAL_SELECT_GROUP_NAME = "🔧 手动选择";
   const DEFAULT_FOREIGN_GROUP = "🌏 国外通用";
   const DEFAULT_DIRECT_GROUP = "🎯 国内直连";
 
-  // We only add the auto-select group if we have chain proxies or if there are nodes.
-  // Actually, user wants it to be added by default to use as first hop.
   if (allNodeNames.length > 0) {
     const existingAutoSelect = finalDoc["proxy-groups"].find(
       (g: any) => g.name === AUTO_SELECT_GROUP_NAME
@@ -131,15 +194,54 @@ export function generateVisualYaml(sub: Subscription): string {
   const autoSelectGroup = finalDoc["proxy-groups"].find(
     (g: any) => g?.name === AUTO_SELECT_GROUP_NAME
   );
-  const autoSelectNodes = Array.isArray(autoSelectGroup?.proxies)
-    ? autoSelectGroup.proxies
-    : [];
+  const hasChainProxy = chainProxies?.some(chain => chain?.secondHopConfig);
+  let firstHopNames = allNodeNames;
+  if (hasChainProxy && firstHopFilter?.enabled && allNodeNames.length > 0) {
+    const include = filterKeywords(firstHopFilter.include);
+    const exclude = filterKeywords(firstHopFilter.exclude);
+    if (include.length === 0)
+      throw new FirstHopFilterError(
+        "第一跳筛选已启用，请填写至少一个地区或节点关键词"
+      );
+    firstHopNames = allNodeNames.filter(name => {
+      const normalized = name.toLocaleLowerCase();
+      return (
+        include.some(keyword => normalized.includes(keyword)) &&
+        !exclude.some(keyword => normalized.includes(keyword))
+      );
+    });
+    if (firstHopNames.length === 0)
+      throw new FirstHopFilterError(
+        "第一跳筛选没有匹配到可用节点，请检查地区和排除关键词"
+      );
+  }
+
+  if (hasChainProxy && firstHopNames.length > 0) {
+    const existingChainSelect = finalDoc["proxy-groups"].find(
+      (g: any) => g.name === CHAIN_SELECT_GROUP_NAME
+    );
+    if (!existingChainSelect) {
+      finalDoc["proxy-groups"].push({
+        name: CHAIN_SELECT_GROUP_NAME,
+        type: "url-test",
+        proxies: [...firstHopNames],
+        url: "http://www.gstatic.com/generate_204",
+        interval: 300,
+        tolerance: 50,
+        hidden: true
+      });
+    } else {
+      existingChainSelect.type = "url-test";
+      existingChainSelect.proxies = [...firstHopNames];
+      existingChainSelect.hidden = true;
+    }
+  }
   const manualSelectGroup = finalDoc["proxy-groups"].find(
     (g: any) => g?.name === MANUAL_SELECT_GROUP_NAME
   );
   if (manualSelectGroup) {
     manualSelectGroup.proxies = [
-      ...new Set([...(manualSelectGroup.proxies || []), ...autoSelectNodes])
+      ...new Set([...(manualSelectGroup.proxies || []), ...allNodeNames])
     ];
   }
 
@@ -182,9 +284,8 @@ export function generateVisualYaml(sub: Subscription): string {
             }
 
             // Use dialer-proxy instead of relay group for Meta/Mihomo core
-            secondHopNode["dialer-proxy"] = autoSelectGroup
-              ? AUTO_SELECT_GROUP_NAME
-              : "DIRECT";
+            secondHopNode["dialer-proxy"] =
+              firstHopNames.length > 0 ? CHAIN_SELECT_GROUP_NAME : "DIRECT";
             finalDoc.proxies.push(secondHopNode);
 
             // Add a select group so rules can reference the chain proxy by the given name
@@ -210,7 +311,8 @@ export function generateVisualYaml(sub: Subscription): string {
   for (const group of finalDoc["proxy-groups"]) {
     if (!Array.isArray(group.proxies)) continue;
     group.proxies = group.proxies.filter(
-      (name: string) => !optionalGroupNames.has(name) || availableTargets.has(name)
+      (name: string) =>
+        !optionalGroupNames.has(name) || availableTargets.has(name)
     );
     if (group.proxies.length === 0) group.proxies = ["DIRECT"];
   }
@@ -225,48 +327,42 @@ export function generateVisualYaml(sub: Subscription): string {
 
   delete finalDoc.rules;
 
-  // 5. Serialize to YAML
-  let yamlString = YAML.stringify(finalDoc);
-
-  // 6. Append Custom Rules as Raw String to preserve comments and order
-  if (rules && rules.trim().length > 0) {
-    yamlString += "\nrules:\n";
-
-    // Ensure each line that is not a comment starts with proper indentation if needed,
-    // or just append it since rules are usually just strings.
-    // The safest way is to just append the user's raw input block directly under rules:
-    yamlString += rules
-      .split("\n")
-      .map(line => {
-        if (
-          line.trim().startsWith("- ") ||
-          line.trim().startsWith("#") ||
-          line.trim() === ""
-        ) {
-          return `  ${line}`;
-        }
-        return `  - ${line}`; // auto fix missing dash
-      })
-      .join("\n");
-    yamlString += "\n";
+  // Rules are appended after serializing the rest of the document so standalone
+  // comments do not become inline comments on the preceding YAML sequence item.
+  const output = YAML.parseDocument(YAML.stringify(finalDoc));
+  if (output.errors.length > 0) throw output.errors[0];
+  if (preserveComments) {
+    for (const sourceText of [baseConfig, proxyGroupsConfig]) {
+      if (!sourceText) continue;
+      const source = YAML.parseDocument(sourceText);
+      if (source.errors.length > 0) continue;
+      if (YAML.isMap(source.contents))
+        copyComments(source.contents, output.contents);
+      else if (YAML.isSeq(source.contents) && YAML.isMap(output.contents))
+        copyComments(source.contents, output.get("proxy-groups", true));
+      if (source.commentBefore) output.commentBefore = source.commentBefore;
+    }
   } else {
-    yamlString += "\nrules:\n";
-    const defaultRules = [
-      "# 默认通用分流规则（不依赖链式代理，可直接使用）",
-      `- GEOIP,CN,${DEFAULT_DIRECT_GROUP}`,
-      `- MATCH,${DEFAULT_FOREIGN_GROUP}`
-    ]
-      .map(line => `  ${line}`)
-      .join("\n");
-    yamlString += defaultRules + "\n";
+    clearComments(output);
+    clearComments(output.contents);
   }
 
-  yamlString = yamlString
-    .replace(/\n(proxies:\n)/g, "\n\n$1")
-    .replace(/\n(proxy-groups:\n)/g, "\n\n$1")
-    .replace(/\n(rule-providers:\n)/g, "\n\n$1")
-    .replace(/\n(rules:\n)/g, "\n\n$1")
-    .replace(/\n{3,}/g, "\n\n");
-
-  return yamlString;
+  const ruleLines =
+    rules && rules.trim()
+      ? rules.split("\n")
+      : [
+          "# 默认通用分流规则（不依赖链式代理，可直接使用）",
+          `- GEOIP,CN,${DEFAULT_DIRECT_GROUP}`,
+          `- MATCH,${DEFAULT_FOREIGN_GROUP}`
+        ];
+  const formattedRules = ruleLines
+    .map(line => line.trim())
+    .filter(line => preserveComments || !line.startsWith("#"))
+    .map(line =>
+      line.startsWith("-") || line.startsWith("#") || !line
+        ? `  ${line}`
+        : `  - ${line}`
+    )
+    .join("\n");
+  return `${output.toString().trimEnd()}\n\nrules:\n${formattedRules}\n`;
 }

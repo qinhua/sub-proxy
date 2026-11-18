@@ -113,3 +113,18 @@ test("validation rejects incomplete enabled sources and malformed node content",
     );
   }
 });
+
+test("enabled first-hop filter requires include keywords", () => {
+  assert.match(
+    validateVisualConfig({
+      configMode: "visual",
+      visualConfig: {
+        firstHopFilter: { enabled: true, include: "  " },
+        proxyProviders: [
+          { name: "机场", type: "url", url: "https://example.test/sub" }
+        ]
+      }
+    }) || "",
+    /第一跳筛选/
+  );
+});

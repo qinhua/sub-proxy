@@ -13,6 +13,11 @@ rules:`;
 
 export { DEFAULT_BASE_CONFIG } from "@sub-proxy/config";
 
+export const DEFAULT_FIRST_HOP_INCLUDE =
+  "香港, 🇭🇰, HK, Hong Kong, 澳门, 🇲🇴, 澳門, MO, Macau, Macao, 台湾, 🇹🇼, 臺灣, TW, Taiwan, 日本, 🇯🇵, JP, Japan, 韩国, 🇰🇷, KR, Korea, 新加坡, 🇸🇬, SG, Singapore, 马来西亚, 🇲🇾, 馬來西亞, MY, Malaysia";
+export const DEFAULT_FIRST_HOP_EXCLUDE =
+  "剩余流量, 重置, 套餐, 到期, 节点不通, TG交流群, TG频道, 官网, 公告";
+
 // 默认代理组配置
 export const DEFAULT_PROXY_GROUPS_CONFIG = `proxy-groups:
   - name: "🌏 国外通用"

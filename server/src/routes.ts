@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import { z } from "zod";
 import { generateAvatarUrl } from "./utils";
 import { syncProvider } from "./providerSync";
-import { generateVisualYaml } from "./yamlGenerator";
+import { FirstHopFilterError, generateVisualYaml } from "./yamlGenerator";
 import { generateShadowrocketConfig } from "./shadowrocketGenerator";
 import { validateVisualConfig } from "./visualConfigValidation";
 import { Subscription, DbSchema } from "./types";
@@ -107,6 +107,11 @@ export function createRouter(db: {
         ctx.set("Content-Type", "text/yaml; charset=utf-8");
         ctx.body = content;
       } catch (error) {
+        if (error instanceof FirstHopFilterError) {
+          ctx.status = 422;
+          ctx.body = createErrorResponse(error.message, 422);
+          return;
+        }
         console.error("订阅 YAML 预览错误:", error);
         ctx.status = 500;
         ctx.body = createErrorResponse("服务器内部错误");
@@ -188,6 +193,11 @@ export function createRouter(db: {
           : "预览生成成功"
       );
     } catch (error) {
+      if (error instanceof FirstHopFilterError) {
+        ctx.status = 422;
+        ctx.body = createErrorResponse(error.message, 422);
+        return;
+      }
       console.error("预览生成错误:", error);
       ctx.status = 500;
       ctx.body = createErrorResponse("服务器内部错误");
@@ -735,6 +745,11 @@ export function createRouter(db: {
         console.error("计算流量失败:", err);
       }
     } catch (error) {
+      if (error instanceof FirstHopFilterError) {
+        ctx.status = 422;
+        ctx.body = createErrorResponse(error.message, 422);
+        return;
+      }
       console.error("订阅获取错误:", error);
       ctx.status = 500;
       ctx.body = createErrorResponse("服务器内部错误");

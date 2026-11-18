@@ -28,6 +28,12 @@ export type Subscription = {
   visualConfig?: {
     baseConfig?: string;
     proxyGroupsConfig?: string;
+    preserveComments?: boolean;
+    firstHopFilter?: {
+      enabled?: boolean;
+      include?: string;
+      exclude?: string;
+    };
     proxyProviders?: {
       id: string;
       name: string;
