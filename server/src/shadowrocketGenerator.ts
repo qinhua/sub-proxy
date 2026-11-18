@@ -123,7 +123,6 @@ export function generateShadowrocketConfig(
   });
   if (!nodes.length || !rules.length) throw new Error("节点或规则不能为空");
   return [
-    "# 由 SubProxy 从统一配置生成；更新订阅会覆盖本地修改",
     "[General]",
     ...resolveShadowrocketGeneral(generalOverrides).split("\n"),
     "",
@@ -138,6 +137,9 @@ export function generateShadowrocketConfig(
     "",
     "[Host]",
     "localhost = 127.0.0.1",
-    ""
+    "",
+    "[URL Rewrite]",
+    "'^https?://(www.)?g.cn' 'https://www.google.com' 302",
+    "'^https?://(www.)?google.cn' 'https://www.google.com' 302"
   ].join("\n");
 }
